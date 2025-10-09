@@ -41,7 +41,7 @@ Cada registro se traduce en el cuidado de una planta que simboliza tu estado int
 
 2. Editar `.env` con los valores correctos de Supabase (`SUPABASE_URL` y `SUPABASE_ANON_KEY`) y el `JWT_SECRET`.
 
-3. Crear el esquema de base de datos en Supabase ejecutando el script [`backend/supabase/schema.sql`](backend/supabase/schema.sql) en el editor SQL del proyecto.
+3. Crear el esquema de base de datos en Supabase ejecutando el script [`backend/supabase/schema.sql`](backend/supabase/schema.sql) en el editor SQL del proyecto. El script también inserta un usuario y un jardín de demostración para que puedas explorar la aplicación sin tener que registrar una cuenta manualmente.
 
 4. Instalar dependencias:
 
@@ -103,7 +103,7 @@ La documentación detallada se encuentra en los controladores y rutas del direct
    npm run dev
    ```
 
-   La aplicación quedará disponible en la URL indicada por Vite (por defecto `http://localhost:5173`).
+La aplicación quedará disponible en la URL indicada por Vite (por defecto `http://localhost:5173`).
 
 ### Scripts disponibles
 
@@ -112,6 +112,15 @@ La documentación detallada se encuentra en los controladores y rutas del direct
 - `npm run preview`: Previsualiza la build.
 
 El código principal se encuentra en `frontend/src`.
+
+### Usuario de prueba
+
+Después de ejecutar el script de base de datos tendrás disponible el siguiente usuario para iniciar sesión y revisar datos de ejemplo:
+
+- **Email**: `test@example.com`
+- **Contraseña**: `test1234`
+
+El usuario ya cuenta con un jardín y varios eventos registrados que permiten visualizar la experiencia completa nada más acceder.
 
 ---
 
