@@ -30,6 +30,11 @@ const Auth = () => {
     }
   };
 
+  const fillDemoCredentials = () => {
+    setIsLogin(true);
+    setForm({ ...initialForm, email: 'test@example.com', contrasena: 'test1234' });
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gardenSky to-gardenGreen/40">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
@@ -107,6 +112,22 @@ const Auth = () => {
             {isLogin ? 'Regístrate' : 'Inicia sesión'}
           </button>
         </p>
+        {isLogin && (
+          <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
+            <p className="font-semibold text-gardenGreen">¿Quieres explorar rápidamente?</p>
+            <p className="mt-1">
+              Usa el usuario de demostración <code>test@example.com</code> con la contraseña{' '}
+              <code>test1234</code> para ver un jardín con eventos registrados.
+            </p>
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-gardenGreen px-4 py-2 font-semibold text-white hover:bg-emerald-600"
+            >
+              Autocompletar credenciales de prueba
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
