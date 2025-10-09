@@ -5,6 +5,12 @@ Este repositorio contiene una implementación de referencia para la aplicación 
 - **Backend**: API RESTful construida con Node.js, Express y Supabase (PostgreSQL gestionado).
 - **Frontend**: SPA de demostración construida con React, Vite, Tailwind CSS, Axios y GSAP.
 
+## ¿De qué trata la aplicación?
+
+"Mi Jardín Mental" propone una metáfora sencilla para cultivar nuestro bienestar emocional. Cada vez que vivas una situación que te impacte —por ejemplo, un atasco interminable, un logro en el trabajo o un gesto amable— puedes entrar en la app y registrarla como un evento. Los eventos se clasifican por categoría (trabajo, relaciones, autocuidado, etc.) y se etiquetan como positivos o negativos.
+
+Cada registro se traduce en el cuidado de una planta que simboliza tu estado interior: las experiencias positivas nutren tu jardín y hacen que crezca, mientras que las negativas lo desgastan. De esta forma obtienes un diario emocional visual que te ayuda a reconocer patrones, celebrar avances y detectar cuándo necesitas darte más cuidados.
+
 ## Estructura del proyecto
 
 ```

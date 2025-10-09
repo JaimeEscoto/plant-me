@@ -76,6 +76,7 @@ exports.createPlant = async (req, res, next) => {
       .insert({
         jardin_id: garden.id,
         nombre: value.nombre,
+        categoria: value.categoria,
         tipo: value.tipo,
         descripcion: value.descripcion,
       })

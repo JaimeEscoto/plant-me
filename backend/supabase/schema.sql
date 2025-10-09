@@ -23,6 +23,7 @@ create table if not exists public.plantas (
   id uuid primary key default uuid_generate_v4(),
   jardin_id uuid not null references public.jardines(id) on delete cascade,
   nombre text not null,
+  categoria text not null,
   tipo text not null check (tipo in ('positivo', 'negativo', 'neutro')),
   fecha_plantado timestamptz not null default timezone('utc', now()),
   descripcion text

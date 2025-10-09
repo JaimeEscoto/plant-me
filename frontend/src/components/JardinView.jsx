@@ -10,10 +10,21 @@ const moodStyles = [
 
 const getMood = (health) => moodStyles.find((m) => health <= m.limit) || moodStyles[2];
 
+const categoriasSugeridas = [
+  'Trabajo',
+  'Relaciones',
+  'Autocuidado',
+  'Salud',
+  'Aprendizaje',
+  'Otro',
+];
+
+const formBase = () => ({ nombre: '', categoria: categoriasSugeridas[0], tipo: 'positivo', descripcion: '' });
+
 const JardinView = () => {
   const { garden, fetchGarden, api, authHeaders, setGarden } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState({ nombre: '', tipo: 'positivo', descripcion: '' });
+  const [form, setForm] = useState(() => formBase());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [editingPlant, setEditingPlant] = useState(null);
@@ -55,7 +66,7 @@ const JardinView = () => {
         ...data.jardin,
         plantas: [data.plant, ...((prev && prev.plantas) || [])],
       }));
-      setForm({ nombre: '', tipo: 'positivo', descripcion: '' });
+      setForm(formBase());
       setFormOpen(false);
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo registrar la planta.');
@@ -121,12 +132,16 @@ const JardinView = () => {
         <div className="relative z-10">
           <h2 className="text-2xl font-bold text-gardenGreen">Salud del jardín: {health}%</h2>
           <p className="mt-2 text-lg text-slate-700">{mood.message}</p>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
+            Cada emoción que registres representa un riego o una sequía para tu planta interior. Usa las categorías para detectar
+            patrones y equilibrar tu día a día.
+          </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               onClick={() => setFormOpen(true)}
               className="rounded-full bg-gardenGreen px-6 py-2 font-semibold text-white shadow hover:bg-emerald-600"
             >
-              Plantar emoción
+              Registrar evento emocional
             </button>
           </div>
         </div>
@@ -134,6 +149,9 @@ const JardinView = () => {
           {garden.plantas?.map((plant) => (
             <article key={plant.id} className="rounded-2xl bg-white/80 p-4 shadow">
               <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gardenGreen">
+                {plant.categoria || 'Sin categoría'}
+              </p>
               <span
                 className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${
                   plant.tipo === 'positivo'
@@ -170,7 +188,10 @@ const JardinView = () => {
             </article>
           ))}
           {garden.plantas?.length === 0 && (
-            <p className="text-sm text-slate-600">Aún no tienes eventos registrados. ¡Empieza plantando una emoción!</p>
+            <p className="text-sm text-slate-600">
+              Aún no tienes eventos registrados. Cada emoción que registres nutrirá o agotará tu planta según cómo te haya
+              impactado.
+            </p>
           )}
         </div>
       </section>
@@ -179,6 +200,9 @@ const JardinView = () => {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
             <h3 className="text-xl font-bold text-gardenGreen">Registrar emoción</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Describe lo que sucedió, clasifícalo y cuéntanos cómo impactó tu día. Así veremos crecer o decaer el jardín.
+            </p>
             <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="nombre">
@@ -192,6 +216,26 @@ const JardinView = () => {
                   className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
                   required
                 />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="categoria">
+                  Categoría
+                </label>
+                <input
+                  id="categoria"
+                  name="categoria"
+                  value={form.categoria}
+                  onChange={handleChange}
+                  className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                  list="categorias-sugeridas"
+                  placeholder="Ej. Trabajo, Relaciones, Autocuidado"
+                  required
+                />
+                <datalist id="categorias-sugeridas">
+                  {categoriasSugeridas.map((categoria) => (
+                    <option key={categoria} value={categoria} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="tipo">

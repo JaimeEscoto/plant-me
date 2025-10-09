@@ -87,6 +87,9 @@ const HistorialView = () => {
             >
               <div>
                 <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
+                  {plant.categoria || 'Sin categoría'}
+                </p>
                 <p className="text-sm text-slate-600">{plant.descripcion || 'Sin descripción'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
