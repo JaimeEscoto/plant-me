@@ -1,5 +1,5 @@
-const { Op } = require('sequelize');
-const { Garden, Plant } = require('../models');
+const supabase = require('../lib/supabaseClient');
+const { toHttpError } = require('../utils/supabase');
 const {
   createPlantSchema,
   updatePlantSchema,
@@ -19,17 +19,31 @@ const adjustGardenHealth = (currentHealth, tipo, manualDelta) => {
 
 exports.getGarden = async (req, res, next) => {
   try {
-    const garden = await Garden.findOne({
-      where: { usuario_id: req.user.id },
-      include: [{ model: Plant, as: 'plantas' }],
-      order: [[{ model: Plant, as: 'plantas' }, 'fecha_plantado', 'DESC']],
-    });
+    const { data: garden, error } = await supabase
+      .from('jardines')
+      .select('id, usuario_id, estado_salud, ultima_modificacion, plantas:plantas(*)')
+      .eq('usuario_id', req.user.id)
+      .order('fecha_plantado', { referencedTable: 'plantas', ascending: false })
+      .maybeSingle();
+
+    if (error) {
+      throw toHttpError(error, 'No se pudo obtener la información del jardín.');
+    }
 
     if (!garden) {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
-    return res.json(garden);
+    const sortedGarden = {
+      ...garden,
+      plantas: Array.isArray(garden.plantas)
+        ? [...garden.plantas].sort(
+            (a, b) => new Date(b.fecha_plantado).getTime() - new Date(a.fecha_plantado).getTime()
+          )
+        : [],
+    };
+
+    return res.json(sortedGarden);
   } catch (err) {
     return next(err);
   }
@@ -43,23 +57,49 @@ exports.createPlant = async (req, res, next) => {
       throw error;
     }
 
-    const garden = await Garden.findOne({ where: { usuario_id: req.user.id } });
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .select('*')
+      .eq('usuario_id', req.user.id)
+      .maybeSingle();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
+    }
+
     if (!garden) {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
-    const plant = await Plant.create({
-      jardin_id: garden.id,
-      nombre: value.nombre,
-      tipo: value.tipo,
-      descripcion: value.descripcion,
-    });
+    const { data: plant, error: createError } = await supabase
+      .from('plantas')
+      .insert({
+        jardin_id: garden.id,
+        nombre: value.nombre,
+        tipo: value.tipo,
+        descripcion: value.descripcion,
+      })
+      .select()
+      .single();
 
-    garden.estado_salud = adjustGardenHealth(garden.estado_salud, value.tipo);
-    garden.ultima_modificacion = new Date();
-    await garden.save();
+    if (createError) {
+      throw toHttpError(createError, 'No se pudo crear la planta en Supabase.');
+    }
 
-    return res.status(201).json({ plant, jardin: garden });
+    const updatedGardenHealth = adjustGardenHealth(garden.estado_salud, value.tipo);
+    const now = new Date().toISOString();
+    const { data: updatedGarden, error: updateGardenError } = await supabase
+      .from('jardines')
+      .update({ estado_salud: updatedGardenHealth, ultima_modificacion: now })
+      .eq('id', garden.id)
+      .select()
+      .single();
+
+    if (updateGardenError) {
+      throw toHttpError(updateGardenError, 'No se pudo actualizar el estado del jardín.');
+    }
+
+    return res.status(201).json({ plant, jardin: updatedGarden });
   } catch (err) {
     return next(err);
   }
@@ -73,23 +113,56 @@ exports.updatePlant = async (req, res, next) => {
       throw error;
     }
 
-    const garden = await Garden.findOne({ where: { usuario_id: req.user.id } });
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .select('*')
+      .eq('usuario_id', req.user.id)
+      .maybeSingle();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
+    }
+
     if (!garden) {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
-    const plant = await Plant.findOne({ where: { id: req.params.id, jardin_id: garden.id } });
+    const { data: plant, error: plantError } = await supabase
+      .from('plantas')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('jardin_id', garden.id)
+      .maybeSingle();
+
+    if (plantError) {
+      throw toHttpError(plantError, 'No se pudo obtener la planta solicitada.');
+    }
+
     if (!plant) {
       return res.status(404).json({ error: 'Planta no encontrada.' });
     }
 
-    plant.descripcion = value.descripcion;
-    await plant.save();
+    const { data: updatedPlant, error: updateError } = await supabase
+      .from('plantas')
+      .update({ descripcion: value.descripcion })
+      .eq('id', plant.id)
+      .select()
+      .single();
 
-    garden.ultima_modificacion = new Date();
-    await garden.save();
+    if (updateError) {
+      throw toHttpError(updateError, 'No se pudo actualizar la planta en Supabase.');
+    }
 
-    return res.json({ plant });
+    const { error: updateGardenError } = await supabase
+      .from('jardines')
+      .update({ ultima_modificacion: new Date().toISOString() })
+      .eq('id', garden.id);
+
+    if (updateGardenError) {
+      throw toHttpError(updateGardenError, 'No se pudo actualizar el jardín.');
+    }
+
+    return res.json({ plant: updatedPlant });
   } catch (err) {
     return next(err);
   }
@@ -97,22 +170,57 @@ exports.updatePlant = async (req, res, next) => {
 
 exports.deletePlant = async (req, res, next) => {
   try {
-    const garden = await Garden.findOne({ where: { usuario_id: req.user.id } });
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .select('*')
+      .eq('usuario_id', req.user.id)
+      .maybeSingle();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
+    }
+
     if (!garden) {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
-    const plant = await Plant.findOne({ where: { id: req.params.id, jardin_id: garden.id } });
+    const { data: plant, error: plantError } = await supabase
+      .from('plantas')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('jardin_id', garden.id)
+      .maybeSingle();
+
+    if (plantError) {
+      throw toHttpError(plantError, 'No se pudo obtener la planta solicitada.');
+    }
+
     if (!plant) {
       return res.status(404).json({ error: 'Planta no encontrada.' });
     }
 
-    await plant.destroy();
+    const { error: deleteError } = await supabase
+      .from('plantas')
+      .delete()
+      .eq('id', plant.id);
+
+    if (deleteError) {
+      throw toHttpError(deleteError, 'No se pudo eliminar la planta en Supabase.');
+    }
 
     const delta = plant.tipo === 'positivo' ? -5 : plant.tipo === 'negativo' ? 5 : -2;
-    garden.estado_salud = adjustGardenHealth(garden.estado_salud, plant.tipo, delta);
-    garden.ultima_modificacion = new Date();
-    await garden.save();
+    const updatedHealth = adjustGardenHealth(garden.estado_salud, plant.tipo, delta);
+    const { error: updateGardenError } = await supabase
+      .from('jardines')
+      .update({
+        estado_salud: updatedHealth,
+        ultima_modificacion: new Date().toISOString(),
+      })
+      .eq('id', garden.id);
+
+    if (updateGardenError) {
+      throw toHttpError(updateGardenError, 'No se pudo actualizar el jardín.');
+    }
 
     return res.status(204).send();
   } catch (err) {
@@ -128,28 +236,40 @@ exports.getHistory = async (req, res, next) => {
       throw error;
     }
 
-    const garden = await Garden.findOne({ where: { usuario_id: req.user.id } });
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .select('*')
+      .eq('usuario_id', req.user.id)
+      .maybeSingle();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
+    }
+
     if (!garden) {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
-    const where = { jardin_id: garden.id };
-    if (value.fechaInicio || value.fechaFin) {
-      where.fecha_plantado = {};
-      if (value.fechaInicio) {
-        where.fecha_plantado[Op.gte] = new Date(value.fechaInicio);
-      }
-      if (value.fechaFin) {
-        where.fecha_plantado[Op.lte] = new Date(value.fechaFin);
-      }
+    let query = supabase
+      .from('plantas')
+      .select('*')
+      .eq('jardin_id', garden.id)
+      .order('fecha_plantado', { ascending: false });
+
+    if (value.fechaInicio) {
+      query = query.gte('fecha_plantado', value.fechaInicio);
+    }
+    if (value.fechaFin) {
+      query = query.lte('fecha_plantado', value.fechaFin);
     }
 
-    const plants = await Plant.findAll({
-      where,
-      order: [['fecha_plantado', 'DESC']],
-    });
+    const { data: plants, error: historyError } = await query;
 
-    return res.json({ historial: plants });
+    if (historyError) {
+      throw toHttpError(historyError, 'No se pudo obtener el historial de plantas.');
+    }
+
+    return res.json({ historial: plants || [] });
   } catch (err) {
     return next(err);
   }

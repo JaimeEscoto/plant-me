@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
-const { User, Garden } = require('../models');
+const supabase = require('../lib/supabaseClient');
+const { toHttpError } = require('../utils/supabase');
 const { registerSchema, loginSchema } = require('../validations/authValidation');
 
 const signToken = (userId) =>
@@ -17,24 +17,43 @@ exports.register = async (req, res, next) => {
       throw error;
     }
 
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ nombre_usuario: value.nombre_usuario }, { email: value.email }],
-      },
-    });
+    const [{ data: existingByUsername, error: usernameError }, { data: existingByEmail, error: emailError }] = await Promise.all([
+      supabase.from('usuarios').select('id').eq('nombre_usuario', value.nombre_usuario).limit(1),
+      supabase.from('usuarios').select('id').eq('email', value.email).limit(1),
+    ]);
 
-    if (existingUser) {
+    if (usernameError || emailError) {
+      throw toHttpError(usernameError || emailError, 'No se pudo verificar la disponibilidad del usuario.');
+    }
+
+    if ((existingByUsername && existingByUsername.length > 0) || (existingByEmail && existingByEmail.length > 0)) {
       return res.status(409).json({ error: 'El nombre de usuario o email ya está en uso.' });
     }
 
     const hashedPassword = await bcrypt.hash(value.contrasena, 10);
-    const user = await User.create({
-      nombre_usuario: value.nombre_usuario,
-      email: value.email,
-      contrasena: hashedPassword,
-    });
+    const { data: user, error: createUserError } = await supabase
+      .from('usuarios')
+      .insert({
+        nombre_usuario: value.nombre_usuario,
+        email: value.email,
+        contrasena: hashedPassword,
+      })
+      .select()
+      .single();
 
-    const garden = await Garden.create({ usuario_id: user.id });
+    if (createUserError) {
+      throw toHttpError(createUserError, 'No se pudo crear el usuario en Supabase.');
+    }
+
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .insert({ usuario_id: user.id })
+      .select()
+      .single();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo crear el jardín en Supabase.');
+    }
 
     const token = signToken(user.id);
 
@@ -60,7 +79,16 @@ exports.login = async (req, res, next) => {
       throw error;
     }
 
-    const user = await User.findOne({ where: { email: value.email } });
+    const { data: user, error: userError } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('email', value.email)
+      .maybeSingle();
+
+    if (userError) {
+      throw toHttpError(userError, 'No se pudo consultar el usuario en Supabase.');
+    }
+
     if (!user) {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
@@ -71,7 +99,15 @@ exports.login = async (req, res, next) => {
     }
 
     const token = signToken(user.id);
-    const garden = await Garden.findOne({ where: { usuario_id: user.id } });
+    const { data: garden, error: gardenError } = await supabase
+      .from('jardines')
+      .select('*')
+      .eq('usuario_id', user.id)
+      .maybeSingle();
+
+    if (gardenError) {
+      throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
+    }
 
     return res.status(200).json({
       token,

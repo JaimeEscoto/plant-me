@@ -2,7 +2,7 @@
 
 Este repositorio contiene una implementación de referencia para la aplicación "Mi Jardín Mental", compuesta por:
 
-- **Backend**: API RESTful construida con Node.js, Express, PostgreSQL y Sequelize.
+- **Backend**: API RESTful construida con Node.js, Express y Supabase (PostgreSQL gestionado).
 - **Frontend**: SPA de demostración construida con React, Vite, Tailwind CSS, Axios y GSAP.
 
 ## Estructura del proyecto
@@ -22,7 +22,7 @@ Este repositorio contiene una implementación de referencia para la aplicación 
 ### Requisitos previos
 
 - Node.js >= 18
-- PostgreSQL >= 13
+- Una instancia de Supabase (PostgreSQL gestionado)
 
 ### Configuración
 
@@ -33,15 +33,17 @@ Este repositorio contiene una implementación de referencia para la aplicación 
    cp .env.example .env
    ```
 
-2. Editar `.env` con los valores correctos de la base de datos y el `JWT_SECRET`.
+2. Editar `.env` con los valores correctos de Supabase (`SUPABASE_URL` y `SUPABASE_ANON_KEY`) y el `JWT_SECRET`.
 
-3. Instalar dependencias:
+3. Crear el esquema de base de datos en Supabase ejecutando el script [`backend/supabase/schema.sql`](backend/supabase/schema.sql) en el editor SQL del proyecto.
+
+4. Instalar dependencias:
 
    ```bash
    npm install
    ```
 
-4. Ejecutar migraciones automáticas (a través de `sequelize.sync()` en el arranque) iniciando el servidor:
+5. Iniciar el servidor (las tablas se gestionan directamente por Supabase):
 
    ```bash
    npm run dev
@@ -110,5 +112,5 @@ El código principal se encuentra en `frontend/src`.
 ## Notas
 
 - Ajusta las políticas de CORS y los valores de salud del jardín según las necesidades del producto.
-- Considera implementar migraciones formales con Sequelize CLI para entornos productivos.
+- Considera gestionar migraciones formales utilizando el CLI de Supabase o herramientas de PostgreSQL según tus necesidades.
 - Tailwind CSS requiere ejecutar `npm run dev` para generar los estilos a partir de los `@tailwind` declarados en `index.css`.
