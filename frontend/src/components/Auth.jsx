@@ -36,6 +36,10 @@ const Auth = () => {
         <h2 className="mb-6 text-center text-3xl font-bold text-gardenGreen">
           {isLogin ? 'Bienvenido a Mi Jardín Mental' : 'Crear una cuenta'}
         </h2>
+        <p className="mb-6 text-center text-sm text-slate-600">
+          Registra las vivencias buenas y malas de tu día, clasifícalas por categoría y observa cómo evoluciona la planta que
+          representa tu bienestar.
+        </p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           {!isLogin && (
             <div>
