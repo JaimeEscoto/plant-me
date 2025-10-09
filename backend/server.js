@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const morgan = require('morgan');
-const { sequelize } = require('./src/models');
+const supabase = require('./src/lib/supabaseClient');
 const authRoutes = require('./src/routes/authRoutes');
 const gardenRoutes = require('./src/routes/gardenRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
@@ -25,19 +25,23 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 
-(async () => {
+const logSupabaseStatus = async () => {
   try {
-    await sequelize.authenticate();
-    console.log('Database connection established.');
-    await sequelize.sync();
-    console.log('Database synced.');
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-    process.exit(1);
+    const { error } = await supabase.from('usuarios').select('id', { count: 'exact', head: true }).limit(1);
+    if (error) {
+      console.warn('Supabase connection established but validation query returned an error (this may happen before tables exist):', error.message);
+    } else {
+      console.log('Supabase connection verified successfully.');
+    }
+  } catch (err) {
+    console.warn('Unable to verify Supabase connection:', err.message);
   }
-})();
+};
+
+logSupabaseStatus();
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 module.exports = app;
