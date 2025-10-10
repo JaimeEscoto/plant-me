@@ -89,7 +89,7 @@ const fetchFriendsSummaries = async (friendEntries) => {
     .sort((a, b) => a.nombre_usuario.localeCompare(b.nombre_usuario, 'es'));
 };
 
-const fetchUserProfile = async (userId) => {
+const fetchUserProfile = async (userId, currentUserId) => {
   const [{ data: user, error: userError }, { data: garden, error: gardenError }] = await Promise.all([
     supabase
       .from('usuarios')
@@ -118,6 +118,101 @@ const fetchUserProfile = async (userId) => {
     throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
   }
 
+  const rawPlants = Array.isArray(garden?.plantas) ? garden.plantas : [];
+  let enrichedPlants = rawPlants;
+
+  if (rawPlants.length) {
+    const plantIds = rawPlants.map((plant) => plant.id);
+    const [plantLikesResult, commentsResult] = await Promise.all([
+      supabase
+        .from('plantas_likes')
+        .select('planta_id, usuario_id')
+        .in('planta_id', plantIds),
+      supabase
+        .from('plantas_comentarios')
+        .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario )')
+        .in('planta_id', plantIds)
+        .order('fecha_creacion', { ascending: true }),
+    ]);
+
+    if (plantLikesResult.error) {
+      throw toHttpError(plantLikesResult.error, 'No se pudieron obtener los me gusta de los eventos.');
+    }
+
+    if (commentsResult.error) {
+      throw toHttpError(commentsResult.error, 'No se pudieron obtener los comentarios de los eventos.');
+    }
+
+    const plantLikes = plantLikesResult.data || [];
+    const comments = commentsResult.data || [];
+
+    let commentLikes = [];
+    if (comments.length) {
+      const commentIds = comments.map((comment) => comment.id);
+      const commentLikesResult = await supabase
+        .from('comentarios_likes')
+        .select('comentario_id, usuario_id')
+        .in('comentario_id', commentIds);
+
+      if (commentLikesResult.error) {
+        throw toHttpError(commentLikesResult.error, 'No se pudieron obtener los me gusta de los comentarios.');
+      }
+
+      commentLikes = commentLikesResult.data || [];
+    }
+
+    const plantLikesById = new Map();
+    plantLikes.forEach((like) => {
+      if (!like?.planta_id) return;
+      const entry = plantLikesById.get(like.planta_id) || { count: 0, likedByMe: false };
+      entry.count += 1;
+      if (currentUserId && like.usuario_id === currentUserId) {
+        entry.likedByMe = true;
+      }
+      plantLikesById.set(like.planta_id, entry);
+    });
+
+    const commentLikesById = new Map();
+    commentLikes.forEach((like) => {
+      if (!like?.comentario_id) return;
+      const entry = commentLikesById.get(like.comentario_id) || { count: 0, likedByMe: false };
+      entry.count += 1;
+      if (currentUserId && like.usuario_id === currentUserId) {
+        entry.likedByMe = true;
+      }
+      commentLikesById.set(like.comentario_id, entry);
+    });
+
+    const commentsByPlant = new Map();
+    comments.forEach((comment) => {
+      if (!comment?.planta_id) return;
+      const likesInfo = commentLikesById.get(comment.id) || { count: 0, likedByMe: false };
+      const normalizedComment = {
+        id: comment.id,
+        planta_id: comment.planta_id,
+        usuario_id: comment.usuario_id,
+        contenido: comment.contenido,
+        fecha_creacion: comment.fecha_creacion,
+        autor: comment.usuarios?.nombre_usuario || null,
+        likes: { total: likesInfo.count, likedByMe: likesInfo.likedByMe },
+      };
+
+      if (!commentsByPlant.has(comment.planta_id)) {
+        commentsByPlant.set(comment.planta_id, []);
+      }
+      commentsByPlant.get(comment.planta_id).push(normalizedComment);
+    });
+
+    enrichedPlants = rawPlants.map((plant) => {
+      const likesInfo = plantLikesById.get(plant.id) || { count: 0, likedByMe: false };
+      return {
+        ...plant,
+        likes: { total: likesInfo.count, likedByMe: likesInfo.likedByMe },
+        comentarios: commentsByPlant.get(plant.id) || [],
+      };
+    });
+  }
+
   return {
     usuario: user,
     jardin: garden
@@ -125,7 +220,7 @@ const fetchUserProfile = async (userId) => {
           id: garden.id,
           estado_salud: garden.estado_salud,
           ultima_modificacion: garden.ultima_modificacion,
-          plantas: Array.isArray(garden.plantas) ? garden.plantas : [],
+          plantas: enrichedPlants,
         }
       : null,
   };
@@ -286,7 +381,7 @@ exports.getProfile = async (req, res, next) => {
       }
     }
 
-    const perfil = await fetchUserProfile(profileId);
+    const perfil = await fetchUserProfile(profileId, req.user.id);
 
     if (!perfil) {
       return res.status(404).json({ error: 'El perfil solicitado no existe.' });
