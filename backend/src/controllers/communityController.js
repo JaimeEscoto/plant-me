@@ -55,7 +55,10 @@ const fetchPlantWithOwner = async (plantId) => {
     throw error;
   }
 
-  const ownerId = plant.jardines?.usuario_id || null;
+  const ownerRelationship = Array.isArray(plant.jardines)
+    ? plant.jardines[0]
+    : plant.jardines;
+  const ownerId = ownerRelationship?.usuario_id || null;
   return { plant, ownerId };
 };
 
