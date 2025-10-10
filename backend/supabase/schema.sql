@@ -45,6 +45,39 @@ create table if not exists public.amistades (
 create index if not exists amistades_usuario_a_idx on public.amistades (usuario_a);
 create index if not exists amistades_usuario_b_idx on public.amistades (usuario_b);
 
+create table if not exists public.plantas_likes (
+  id uuid primary key default uuid_generate_v4(),
+  planta_id uuid not null references public.plantas(id) on delete cascade,
+  usuario_id uuid not null references public.usuarios(id) on delete cascade,
+  fecha_creacion timestamptz not null default timezone('utc', now()),
+  constraint plantas_likes_unicos unique (planta_id, usuario_id)
+);
+
+create index if not exists plantas_likes_planta_idx on public.plantas_likes (planta_id);
+create index if not exists plantas_likes_usuario_idx on public.plantas_likes (usuario_id);
+
+create table if not exists public.plantas_comentarios (
+  id uuid primary key default uuid_generate_v4(),
+  planta_id uuid not null references public.plantas(id) on delete cascade,
+  usuario_id uuid not null references public.usuarios(id) on delete cascade,
+  contenido text not null,
+  fecha_creacion timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists plantas_comentarios_planta_idx on public.plantas_comentarios (planta_id);
+create index if not exists plantas_comentarios_usuario_idx on public.plantas_comentarios (usuario_id);
+
+create table if not exists public.comentarios_likes (
+  id uuid primary key default uuid_generate_v4(),
+  comentario_id uuid not null references public.plantas_comentarios(id) on delete cascade,
+  usuario_id uuid not null references public.usuarios(id) on delete cascade,
+  fecha_creacion timestamptz not null default timezone('utc', now()),
+  constraint comentarios_likes_unicos unique (comentario_id, usuario_id)
+);
+
+create index if not exists comentarios_likes_comentario_idx on public.comentarios_likes (comentario_id);
+create index if not exists comentarios_likes_usuario_idx on public.comentarios_likes (usuario_id);
+
 -- ---------------------------------------------------------------------------
 -- Datos de demostración
 -- ---------------------------------------------------------------------------

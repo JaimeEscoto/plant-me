@@ -3,7 +3,15 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const ComunidadView = () => {
-  const { searchUsers, addFriend, getFriends, getUserProfile } = useAuth();
+  const {
+    searchUsers,
+    addFriend,
+    getFriends,
+    getUserProfile,
+    togglePlantLike,
+    createPlantComment,
+    toggleCommentLike,
+  } = useAuth();
   const { t, locale } = useLanguage();
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -21,6 +29,13 @@ const ComunidadView = () => {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState(null);
+  const [interactionError, setInteractionError] = useState(null);
+
+  const [eventLikeLoadingId, setEventLikeLoadingId] = useState(null);
+  const [commentLikeLoadingId, setCommentLikeLoadingId] = useState(null);
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [commentSubmittingId, setCommentSubmittingId] = useState(null);
+  const [commentErrors, setCommentErrors] = useState({});
 
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true);
@@ -47,6 +62,9 @@ const ComunidadView = () => {
       try {
         const data = await getUserProfile(friendId);
         setProfile(data);
+        setInteractionError(null);
+        setCommentDrafts({});
+        setCommentErrors({});
       } catch (err) {
         setProfile(null);
         setProfileError(err.response?.data?.error || t('communityProfileError'));
@@ -60,6 +78,9 @@ const ComunidadView = () => {
   const handleSelectFriend = useCallback(
     (friendId) => {
       setSelectedFriendId(friendId);
+      setInteractionError(null);
+      setCommentDrafts({});
+      setCommentErrors({});
       loadProfile(friendId);
     },
     [loadProfile]
@@ -123,6 +144,105 @@ const ComunidadView = () => {
       setSearchError(err.response?.data?.error || t('communityErrorAddFriend'));
     } finally {
       setAddingFriendId(null);
+    }
+  };
+
+  const handleToggleEventLike = async (plantId) => {
+    setEventLikeLoadingId(plantId);
+    setInteractionError(null);
+    try {
+      const result = await togglePlantLike(plantId);
+      if (result?.plantaId) {
+        setProfile((prev) => {
+          if (!prev?.jardin?.plantas) return prev;
+          const updatedPlants = prev.jardin.plantas.map((plant) =>
+            plant.id === result.plantaId
+              ? {
+                  ...plant,
+                  likes: { total: result.total ?? 0, likedByMe: Boolean(result.liked) },
+                }
+              : plant
+          );
+          return { ...prev, jardin: { ...prev.jardin, plantas: updatedPlants } };
+        });
+      }
+    } catch (err) {
+      setInteractionError(err.response?.data?.error || t('communityActionError'));
+    } finally {
+      setEventLikeLoadingId(null);
+    }
+  };
+
+  const handleSubmitComment = async (event, plantId) => {
+    event.preventDefault();
+    const draft = commentDrafts[plantId] || '';
+    const content = draft.trim();
+    if (!content) {
+      setCommentErrors((prev) => ({ ...prev, [plantId]: t('communityCommentRequired') }));
+      return;
+    }
+
+    setCommentErrors((prev) => ({ ...prev, [plantId]: null }));
+    setCommentSubmittingId(plantId);
+    try {
+      const result = await createPlantComment(plantId, { contenido: content });
+      if (result?.comentario && result?.plantaId) {
+        setProfile((prev) => {
+          if (!prev?.jardin?.plantas) return prev;
+          const updatedPlants = prev.jardin.plantas.map((plant) => {
+            if (plant.id !== result.plantaId) return plant;
+            const existingComments = Array.isArray(plant.comentarios) ? plant.comentarios : [];
+            return {
+              ...plant,
+              comentarios: [...existingComments, result.comentario],
+            };
+          });
+          return { ...prev, jardin: { ...prev.jardin, plantas: updatedPlants } };
+        });
+        setCommentDrafts((prev) => ({ ...prev, [plantId]: '' }));
+      }
+    } catch (err) {
+      setCommentErrors((prev) => ({
+        ...prev,
+        [plantId]: err.response?.data?.error || t('communityCommentError'),
+      }));
+    } finally {
+      setCommentSubmittingId(null);
+    }
+  };
+
+  const handleToggleCommentLike = async (commentId) => {
+    setCommentLikeLoadingId(commentId);
+    setInteractionError(null);
+    try {
+      const result = await toggleCommentLike(commentId);
+      if (result?.comentarioId && result?.plantaId) {
+        setProfile((prev) => {
+          if (!prev?.jardin?.plantas) return prev;
+          const updatedPlants = prev.jardin.plantas.map((plant) => {
+            if (plant.id !== result.plantaId) return plant;
+            const updatedComments = Array.isArray(plant.comentarios)
+              ? plant.comentarios.map((comment) =>
+                  comment.id === result.comentarioId
+                    ? {
+                        ...comment,
+                        likes: {
+                          total: result.total ?? 0,
+                          likedByMe: Boolean(result.liked),
+                        },
+                      }
+                    : comment
+                )
+              : [];
+            return { ...plant, comentarios: updatedComments };
+          });
+          return { ...prev, jardin: { ...prev.jardin, plantas: updatedPlants } };
+        });
+      }
+    } catch (err) {
+      setInteractionError(err.response?.data?.error || t('communityActionError'));
+    } finally {
+      setCommentLikeLoadingId(null);
     }
   };
 
@@ -287,6 +407,9 @@ const ComunidadView = () => {
         {profileError && <p className="text-sm text-rose-600">{profileError}</p>}
         {!profileLoading && !profileError && profile && (
           <div className="space-y-6">
+            {interactionError && (
+              <p className="text-sm text-rose-600">{interactionError}</p>
+            )}
             {profile.jardin ? (
               <div className="rounded-2xl bg-gradient-to-br from-emerald-100 via-sky-100 to-white p-4">
                 <p className="text-lg font-semibold text-gardenGreen">
@@ -336,6 +459,116 @@ const ComunidadView = () => {
                           timeStyle: 'short',
                         })}
                       </time>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEventLike(plant.id)}
+                          disabled={eventLikeLoadingId === plant.id}
+                          className={`flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/60 focus:ring-offset-1 ${
+                            plant.likes?.likedByMe
+                              ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                              : 'border-gardenGreen text-gardenGreen hover:bg-emerald-50'
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          {eventLikeLoadingId === plant.id
+                            ? t('communityWorking')
+                            : plant.likes?.likedByMe
+                            ? t('communityUnlikeEvent')
+                            : t('communityLikeEvent')}
+                          <span className="inline-flex min-w-[1.75rem] justify-center rounded-full bg-white/30 px-2 py-0.5 text-xs font-semibold text-white">
+                            {plant.likes?.total ?? 0}
+                          </span>
+                        </button>
+                        <p className="text-xs text-slate-500">
+                          {t('communityLikesCount', { count: plant.likes?.total ?? 0 })}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 border-t border-slate-200 pt-4">
+                        <h4 className="text-sm font-semibold text-gardenGreen">
+                          {t('communityCommentsTitle')}
+                        </h4>
+                        {Array.isArray(plant.comentarios) && plant.comentarios.length > 0 ? (
+                          <ul className="mt-3 space-y-3">
+                            {plant.comentarios.map((comment) => (
+                              <li
+                                key={comment.id}
+                                className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-gardenSoil">
+                                      {comment.autor || t('communityUnknownUser')}
+                                    </p>
+                                    <p className="text-sm text-slate-700">{comment.contenido}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleCommentLike(comment.id)}
+                                    disabled={commentLikeLoadingId === comment.id}
+                                    className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/60 focus:ring-offset-1 ${
+                                      comment.likes?.likedByMe
+                                        ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                                        : 'border-gardenGreen text-gardenGreen hover:bg-emerald-50'
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                  >
+                                    {commentLikeLoadingId === comment.id
+                                      ? t('communityWorking')
+                                      : comment.likes?.likedByMe
+                                      ? t('communityUnlikeComment')
+                                      : t('communityLikeComment')}
+                                    <span className="inline-flex min-w-[1.5rem] justify-center rounded-full bg-white/30 px-2 py-0.5 text-[0.7rem] font-semibold text-white">
+                                      {comment.likes?.total ?? 0}
+                                    </span>
+                                  </button>
+                                </div>
+                                <time className="mt-2 block text-xs text-slate-500">
+                                  {new Date(comment.fecha_creacion).toLocaleString(locale, {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </time>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">{t('communityNoComments')}</p>
+                        )}
+
+                        <form
+                          onSubmit={(event) => handleSubmitComment(event, plant.id)}
+                          className="mt-4 space-y-2"
+                        >
+                          <textarea
+                            value={commentDrafts[plant.id] || ''}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setCommentDrafts((prev) => ({ ...prev, [plant.id]: value }));
+                              setCommentErrors((prev) => ({ ...prev, [plant.id]: null }));
+                            }}
+                            placeholder={t('communityCommentPlaceholder')}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/50"
+                            rows={2}
+                          />
+                          {commentErrors[plant.id] && (
+                            <p className="text-xs text-rose-600">{commentErrors[plant.id]}</p>
+                          )}
+                          <div className="flex items-center justify-end">
+                            <button
+                              type="submit"
+                              className="rounded-full bg-gardenGreen px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={
+                                commentSubmittingId === plant.id || !(commentDrafts[plant.id] || '').trim()
+                              }
+                            >
+                              {commentSubmittingId === plant.id
+                                ? t('communityCommentPosting')
+                                : t('communityCommentButton')}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </li>
                   ))}
                 </ul>

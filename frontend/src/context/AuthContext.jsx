@@ -145,6 +145,39 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const togglePlantLike = useCallback(
+    async (plantId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/usuarios/plantas/${plantId}/likes`, null, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const createPlantComment = useCallback(
+    async (plantId, payload) => {
+      if (!token) return null;
+      const { data } = await api.post(`/usuarios/plantas/${plantId}/comentarios`, payload, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const toggleCommentLike = useCallback(
+    async (commentId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/usuarios/comentarios/${commentId}/likes`, null, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -162,6 +195,9 @@ export const AuthProvider = ({ children }) => {
     addFriend,
     getFriends,
     getUserProfile,
+    togglePlantLike,
+    createPlantComment,
+    toggleCommentLike,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
