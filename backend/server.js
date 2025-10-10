@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const supabase = require('./src/lib/supabaseClient');
 const authRoutes = require('./src/routes/authRoutes');
 const gardenRoutes = require('./src/routes/gardenRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(morgan('dev'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/jardin', gardenRoutes);
+app.use('/api/usuarios', userRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Mi Jardín Mental API is running' });

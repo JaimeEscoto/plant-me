@@ -102,6 +102,47 @@ export const AuthProvider = ({ children }) => {
     }
   }, [authHeaders, token]);
 
+  const searchUsers = useCallback(
+    async (query) => {
+      if (!token) return [];
+      const { data } = await api.get('/usuarios/buscar', {
+        headers: authHeaders,
+        params: { q: query },
+      });
+      return data.resultados || [];
+    },
+    [authHeaders, token]
+  );
+
+  const addFriend = useCallback(
+    async (friendId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/usuarios/${friendId}/amigos`, null, {
+        headers: authHeaders,
+      });
+      return data.amigo || null;
+    },
+    [authHeaders, token]
+  );
+
+  const getFriends = useCallback(
+    async () => {
+      if (!token) return [];
+      const { data } = await api.get('/usuarios/amigos', { headers: authHeaders });
+      return data.amigos || [];
+    },
+    [authHeaders, token]
+  );
+
+  const getUserProfile = useCallback(
+    async (userId) => {
+      if (!token) return null;
+      const { data } = await api.get(`/usuarios/${userId}/perfil`, { headers: authHeaders });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -115,6 +156,10 @@ export const AuthProvider = ({ children }) => {
     setGarden,
     authHeaders,
     api,
+    searchUsers,
+    addFriend,
+    getFriends,
+    getUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

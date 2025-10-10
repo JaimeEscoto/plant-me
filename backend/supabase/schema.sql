@@ -32,6 +32,19 @@ create table if not exists public.plantas (
 create index if not exists plantas_jardin_id_idx on public.plantas (jardin_id);
 create index if not exists plantas_jardin_fecha_idx on public.plantas (jardin_id, fecha_plantado desc);
 
+create table if not exists public.amistades (
+  id uuid primary key default uuid_generate_v4(),
+  usuario_a uuid not null references public.usuarios(id) on delete cascade,
+  usuario_b uuid not null references public.usuarios(id) on delete cascade,
+  fecha_creacion timestamptz not null default timezone('utc', now()),
+  constraint amistades_unicas unique (usuario_a, usuario_b),
+  constraint amistades_no_autovinculo check (usuario_a <> usuario_b),
+  constraint amistades_orden check (usuario_a < usuario_b)
+);
+
+create index if not exists amistades_usuario_a_idx on public.amistades (usuario_a);
+create index if not exists amistades_usuario_b_idx on public.amistades (usuario_b);
+
 -- ---------------------------------------------------------------------------
 -- Datos de demostración
 -- ---------------------------------------------------------------------------
