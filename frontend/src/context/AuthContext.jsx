@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import axios from 'axios';
+import { useLanguage } from './LanguageContext';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,7 @@ const api = axios.create({
 });
 
 export const AuthProvider = ({ children }) => {
+  const { t } = useLanguage();
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem('user');
@@ -53,7 +55,7 @@ export const AuthProvider = ({ children }) => {
         setGarden(data.user.jardin);
         return data.user;
       } catch (err) {
-        setError(err.response?.data?.error || 'Error al registrar.');
+        setError(err.response?.data?.error || t('authErrorRegister'));
         throw err;
       } finally {
         setLoading(false);
@@ -72,7 +74,7 @@ export const AuthProvider = ({ children }) => {
         setGarden(data.user.jardin);
         return data.user;
       } catch (err) {
-        setError(err.response?.data?.error || 'Error al iniciar sesión.');
+        setError(err.response?.data?.error || t('authErrorLogin'));
         throw err;
       } finally {
         setLoading(false);
@@ -95,7 +97,7 @@ export const AuthProvider = ({ children }) => {
       setGarden(data);
       return data;
     } catch (err) {
-      setError('No se pudo obtener el jardín.');
+      setError(t('authErrorFetchGarden'));
       throw err;
     } finally {
       setLoading(false);

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from './LanguageSelector';
 
 const initialForm = {
   nombre_usuario: '',
@@ -9,6 +11,7 @@ const initialForm = {
 
 const Auth = () => {
   const { login, register, loading, error } = useAuth();
+  const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState(initialForm);
 
@@ -26,7 +29,7 @@ const Auth = () => {
         await register(form);
       }
     } catch (err) {
-      // El error se maneja desde el contexto
+      // Error handled in context
     }
   };
 
@@ -38,18 +41,18 @@ const Auth = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gardenSky to-gardenGreen/40">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-4 flex justify-end">
+          <LanguageSelector variant="auth" />
+        </div>
         <h2 className="mb-6 text-center text-3xl font-bold text-gardenGreen">
-          {isLogin ? 'Bienvenido a Mi Jardín Mental' : 'Crear una cuenta'}
+          {isLogin ? t('authWelcomeTitle') : t('authCreateAccountTitle')}
         </h2>
-        <p className="mb-6 text-center text-sm text-slate-600">
-          Registra las vivencias buenas y malas de tu día, clasifícalas por categoría y observa cómo evoluciona la planta que
-          representa tu bienestar.
-        </p>
+        <p className="mb-6 text-center text-sm text-slate-600">{t('authIntro')}</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           {!isLogin && (
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="nombre_usuario">
-                Nombre de usuario
+                {t('authUsernameLabel')}
               </label>
               <input
                 id="nombre_usuario"
@@ -64,7 +67,7 @@ const Auth = () => {
           )}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="email">
-              Email
+              {t('authEmailLabel')}
             </label>
             <input
               id="email"
@@ -78,7 +81,7 @@ const Auth = () => {
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="contrasena">
-              Contraseña
+              {t('authPasswordLabel')}
             </label>
             <input
               id="contrasena"
@@ -96,11 +99,11 @@ const Auth = () => {
             className="w-full rounded-full bg-gardenGreen py-2 font-semibold text-white transition hover:bg-emerald-600"
             disabled={loading}
           >
-            {loading ? 'Procesando...' : isLogin ? 'Iniciar sesión' : 'Registrarme'}
+            {loading ? t('authProcessing') : isLogin ? t('authLoginButton') : t('authRegisterButton')}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-600">
-          {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
+          {isLogin ? t('authNoAccount') : t('authHaveAccount')}{' '}
           <button
             type="button"
             className="font-semibold text-gardenGreen hover:underline"
@@ -109,22 +112,21 @@ const Auth = () => {
               setForm(initialForm);
             }}
           >
-            {isLogin ? 'Regístrate' : 'Inicia sesión'}
+            {isLogin ? t('authRegisterLink') : t('authLoginLink')}
           </button>
         </p>
         {isLogin && (
           <div className="mt-6 rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
-            <p className="font-semibold text-gardenGreen">¿Quieres explorar rápidamente?</p>
+            <p className="font-semibold text-gardenGreen">{t('authDemoTitle')}</p>
             <p className="mt-1">
-              Usa el usuario de demostración <code>test@example.com</code> con la contraseña{' '}
-              <code>test1234</code> para ver un jardín con eventos registrados.
+              {t('authDemoText', { email: 'test@example.com', password: 'test1234' })}
             </p>
             <button
               type="button"
               onClick={fillDemoCredentials}
               className="mt-3 inline-flex items-center justify-center rounded-full bg-gardenGreen px-4 py-2 font-semibold text-white hover:bg-emerald-600"
             >
-              Autocompletar credenciales de prueba
+              {t('authDemoButton')}
             </button>
           </div>
         )}

@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const ComunidadView = () => {
   const { searchUsers, addFriend, getFriends, getUserProfile } = useAuth();
+  const { t, locale } = useLanguage();
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -27,11 +29,11 @@ const ComunidadView = () => {
       const data = await getFriends();
       setFriends(data);
     } catch (err) {
-      setFriendsError('No se pudieron cargar tus amigos.');
+      setFriendsError(t('communityFriendsError'));
     } finally {
       setFriendsLoading(false);
     }
-  }, [getFriends]);
+  }, [getFriends, t]);
 
   useEffect(() => {
     loadFriends();
@@ -47,12 +49,12 @@ const ComunidadView = () => {
         setProfile(data);
       } catch (err) {
         setProfile(null);
-        setProfileError(err.response?.data?.error || 'No se pudo cargar el perfil seleccionado.');
+        setProfileError(err.response?.data?.error || t('communityProfileError'));
       } finally {
         setProfileLoading(false);
       }
     },
-    [getUserProfile]
+    [getUserProfile, t]
   );
 
   const handleSelectFriend = useCallback(
@@ -79,7 +81,7 @@ const ComunidadView = () => {
     event.preventDefault();
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) {
-      setSearchError('Escribe al menos 2 caracteres para buscar.');
+      setSearchError(t('communitySearchMinChars'));
       setStatusMessage(null);
       setSearchResults([]);
       return;
@@ -92,7 +94,7 @@ const ComunidadView = () => {
       const results = await searchUsers(trimmedQuery);
       setSearchResults(results);
     } catch (err) {
-      setSearchError('No se pudo realizar la búsqueda.');
+      setSearchError(t('communitySearchError'));
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -107,8 +109,8 @@ const ComunidadView = () => {
       const friend = await addFriend(friendId);
       setStatusMessage(
         friend?.nombre_usuario
-          ? `${friend.nombre_usuario} ahora forma parte de tu jardín social.`
-          : 'Se agregó el nuevo amigo correctamente.'
+          ? t('communityFriendAdded', { name: friend.nombre_usuario })
+          : t('communityFriendAddedGeneric')
       );
       setSearchResults((prev) =>
         prev.map((item) => (item.id === friendId ? { ...item, es_amigo: true } : item))
@@ -118,7 +120,7 @@ const ComunidadView = () => {
         handleSelectFriend(friend.id);
       }
     } catch (err) {
-      setSearchError(err.response?.data?.error || 'No se pudo agregar a la persona seleccionada.');
+      setSearchError(err.response?.data?.error || t('communityErrorAddFriend'));
     } finally {
       setAddingFriendId(null);
     }
@@ -140,17 +142,15 @@ const ComunidadView = () => {
       <div className="space-y-6">
         <section className="rounded-3xl bg-white p-6 shadow">
           <header className="mb-4">
-            <h2 className="text-xl font-semibold text-gardenGreen">Buscar comunidad</h2>
-            <p className="text-sm text-slate-600">
-              Encuentra a otros jardineros emocionales por su nombre de usuario y agrégalos como amigos.
-            </p>
+            <h2 className="text-xl font-semibold text-gardenGreen">{t('communitySearchTitle')}</h2>
+            <p className="text-sm text-slate-600">{t('communitySearchSubtitle')}</p>
           </header>
           <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row">
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por nombre de usuario"
+              placeholder={t('communitySearchPlaceholder')}
               className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-slate-700 focus:border-gardenGreen focus:outline-none"
             />
             <button
@@ -158,7 +158,7 @@ const ComunidadView = () => {
               className="rounded-full bg-gardenGreen px-5 py-2 font-semibold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={searching}
             >
-              {searching ? 'Buscando...' : 'Buscar'}
+              {searching ? t('communitySearching') : t('communitySearchButton')}
             </button>
           </form>
           {(searchError || statusMessage) && (
@@ -176,7 +176,7 @@ const ComunidadView = () => {
                   <div>
                     <p className="text-sm font-semibold text-gardenSoil">{result.nombre_usuario}</p>
                     {result.es_amigo && (
-                      <p className="text-xs text-emerald-600">Ya es parte de tus amigos</p>
+                      <p className="text-xs text-emerald-600">{t('communityAlreadyFriend')}</p>
                     )}
                   </div>
                   <button
@@ -186,10 +186,10 @@ const ComunidadView = () => {
                     className="rounded-full bg-emerald-500 px-4 py-1 text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     {result.es_amigo
-                      ? 'Amigo agregado'
+                      ? t('communityFriendAddedLabel')
                       : addingFriendId === result.id
-                      ? 'Agregando...'
-                      : 'Agregar amigo'}
+                      ? t('communityAddingFriend')
+                      : t('communityAddFriend')}
                   </button>
                 </li>
               ))}
@@ -200,30 +200,28 @@ const ComunidadView = () => {
         <section className="rounded-3xl bg-white p-6 shadow">
           <header className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gardenGreen">Tus amigos</h2>
-              <p className="text-sm text-slate-600">Explora cómo florecen los jardines de tu comunidad.</p>
+              <h2 className="text-xl font-semibold text-gardenGreen">{t('communityFriendsTitle')}</h2>
+              <p className="text-sm text-slate-600">{t('communityFriendsSubtitle')}</p>
             </div>
             <button
               type="button"
               onClick={loadFriends}
               className="rounded-full border border-gardenGreen px-4 py-1 text-sm font-semibold text-gardenGreen hover:bg-emerald-50"
             >
-              Actualizar
+              {t('communityRefresh')}
             </button>
           </header>
-          {friendsLoading && <p className="text-sm text-slate-500">Cargando amigos...</p>}
+          {friendsLoading && <p className="text-sm text-slate-500">{t('communityFriendsLoading')}</p>}
           {friendsError && <p className="text-sm text-rose-600">{friendsError}</p>}
           {!friendsLoading && !friendsError && friends.length === 0 && (
-            <p className="text-sm text-slate-600">
-              Aún no tienes amigos registrados. Busca nuevos jardineros y comparte su crecimiento emocional.
-            </p>
+            <p className="text-sm text-slate-600">{t('communityNoFriends')}</p>
           )}
           <ul className="mt-4 space-y-3">
             {friends.map((friend) => {
               const health = friend.jardin?.estado_salud ?? null;
               const lastEvent = friend.jardin?.plantas_recientes?.[0] || null;
               const friendshipDate = friend.fecha_union
-                ? new Date(friend.fecha_union).toLocaleDateString('es-ES', { dateStyle: 'medium' })
+                ? new Date(friend.fecha_union).toLocaleDateString(locale, { dateStyle: 'medium' })
                 : null;
               return (
                 <li key={friend.id}>
@@ -239,25 +237,32 @@ const ComunidadView = () => {
                     <div className="flex items-center justify-between">
                       <p className="text-base font-semibold text-gardenSoil">{friend.nombre_usuario}</p>
                       {health !== null && (
-                        <span className="text-sm font-semibold text-gardenGreen">Salud: {health}%</span>
+                        <span className="text-sm font-semibold text-gardenGreen">
+                          {t('communityHealthLabel', { health })}
+                        </span>
                       )}
                     </div>
                     {friendshipDate && (
-                      <p className="mt-1 text-xs text-slate-500">Amistad desde {friendshipDate}</p>
+                      <p className="mt-1 text-xs text-slate-500">{t('communityFriendshipSince', { date: friendshipDate })}</p>
                     )}
                     {lastEvent ? (
                       <p className="mt-3 text-sm text-slate-600">
-                        Último evento: <strong>{lastEvent.nombre}</strong>{' '}
+                        {t('communityLastEvent')}{' '}
+                        <strong>{lastEvent.nombre}</strong>{' '}
                         <span
                           className={`ml-2 inline-block rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-white ${renderEventBadge(
                             lastEvent.tipo
                           )}`}
                         >
-                          {lastEvent.tipo}
+                          {lastEvent.tipo === 'positivo'
+                            ? t('gardenTypePositive')
+                            : lastEvent.tipo === 'negativo'
+                            ? t('gardenTypeNegative')
+                            : t('gardenTypeNeutral')}
                         </span>
                       </p>
                     ) : (
-                      <p className="mt-3 text-sm text-slate-500">Aún no hay eventos registrados.</p>
+                      <p className="mt-3 text-sm text-slate-500">{t('communityNoEventsYet')}</p>
                     )}
                   </button>
                 </li>
@@ -270,37 +275,37 @@ const ComunidadView = () => {
       <section className="rounded-3xl bg-white p-6 shadow">
         <header className="mb-4">
           <h2 className="text-xl font-semibold text-gardenGreen">
-            {selectedFriend ? `Jardín de ${selectedFriend.nombre_usuario}` : 'Selecciona un amigo'}
+            {selectedFriend
+              ? t('communitySelectedGardenTitle', { name: selectedFriend.nombre_usuario })
+              : t('communitySelectFriend')}
           </h2>
           {selectedFriend && (
-            <p className="text-sm text-slate-600">
-              Conoce sus eventos emocionales y acompaña su proceso de crecimiento.
-            </p>
+            <p className="text-sm text-slate-600">{t('communitySelectedSubtitle')}</p>
           )}
         </header>
-        {profileLoading && <p className="text-sm text-slate-500">Cargando perfil...</p>}
+        {profileLoading && <p className="text-sm text-slate-500">{t('communityProfileLoading')}</p>}
         {profileError && <p className="text-sm text-rose-600">{profileError}</p>}
         {!profileLoading && !profileError && profile && (
           <div className="space-y-6">
             {profile.jardin ? (
               <div className="rounded-2xl bg-gradient-to-br from-emerald-100 via-sky-100 to-white p-4">
                 <p className="text-lg font-semibold text-gardenGreen">
-                  Salud del jardín: {profile.jardin.estado_salud}%
+                  {t('communityGardenHealth', { health: profile.jardin.estado_salud })}
                 </p>
                 <p className="text-sm text-slate-600">
-                  Última actualización:{' '}
-                  {new Date(profile.jardin.ultima_modificacion).toLocaleString('es-ES', {
+                  {t('communityLastUpdate')}{' '}
+                  {new Date(profile.jardin.ultima_modificacion).toLocaleString(locale, {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Este usuario aún no tiene un jardín configurado.</p>
+              <p className="text-sm text-slate-500">{t('communityNoGarden')}</p>
             )}
 
             <div>
-              <h3 className="text-lg font-semibold text-gardenSoil">Eventos compartidos</h3>
+              <h3 className="text-lg font-semibold text-gardenSoil">{t('communitySharedEvents')}</h3>
               {profile.jardin?.plantas?.length ? (
                 <ul className="mt-3 space-y-3">
                   {profile.jardin.plantas.map((plant) => (
@@ -317,12 +322,16 @@ const ComunidadView = () => {
                             plant.tipo
                           )}`}
                         >
-                          {plant.tipo}
+                          {plant.tipo === 'positivo'
+                            ? t('gardenTypePositive')
+                            : plant.tipo === 'negativo'
+                            ? t('gardenTypeNegative')
+                            : t('gardenTypeNeutral')}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-slate-600">{plant.descripcion || 'Sin descripción disponible.'}</p>
+                      <p className="mt-2 text-sm text-slate-600">{plant.descripcion || t('communityNoDescriptionAvailable')}</p>
                       <time className="mt-2 block text-xs text-slate-500">
-                        {new Date(plant.fecha_plantado).toLocaleString('es-ES', {
+                        {new Date(plant.fecha_plantado).toLocaleString(locale, {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         })}
@@ -331,18 +340,16 @@ const ComunidadView = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-slate-600">Todavía no hay eventos registrados para mostrar.</p>
+                <p className="mt-3 text-sm text-slate-600">{t('communityNoSharedEvents')}</p>
               )}
             </div>
           </div>
         )}
         {!profileLoading && !profileError && !profile && friends.length > 0 && (
-          <p className="text-sm text-slate-600">Selecciona un amigo para ver su jardín emocional.</p>
+          <p className="text-sm text-slate-600">{t('communitySelectFriendPrompt')}</p>
         )}
         {!profileLoading && !profileError && friends.length === 0 && (
-          <p className="text-sm text-slate-600">
-            Cuando agregues amigos podrás explorar aquí sus jardines y eventos emocionales.
-          </p>
+          <p className="text-sm text-slate-600">{t('communityNoFriendsProfile')}</p>
         )}
       </section>
     </div>
