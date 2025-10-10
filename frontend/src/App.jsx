@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import Auth from './components/Auth';
 import JardinView from './components/JardinView';
 import HistorialView from './components/HistorialView';
 import ComunidadView from './components/ComunidadView';
+import LanguageSelector from './components/LanguageSelector';
 
 const Dashboard = () => {
   const { garden, fetchGarden, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('jardin');
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!garden) {
@@ -17,9 +20,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gardenSky to-white">
-      <header className="flex items-center justify-between px-6 py-4 bg-white shadow">
-        <h1 className="text-2xl font-bold text-gardenGreen">Mi Jardín Mental</h1>
-        <nav className="space-x-3">
+      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white shadow">
+        <h1 className="text-2xl font-bold text-gardenGreen">{t('headerTitle')}</h1>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <LanguageSelector />
+          <nav className="space-x-3">
           <button
             className={`px-4 py-2 rounded-full transition ${
               activeTab === 'jardin'
@@ -28,7 +33,7 @@ const Dashboard = () => {
             }`}
             onClick={() => setActiveTab('jardin')}
           >
-            Jardín
+            {t('navGarden')}
           </button>
           <button
             className={`px-4 py-2 rounded-full transition ${
@@ -38,7 +43,7 @@ const Dashboard = () => {
             }`}
             onClick={() => setActiveTab('historial')}
           >
-            Historial
+            {t('navHistory')}
           </button>
           <button
             className={`px-4 py-2 rounded-full transition ${
@@ -48,15 +53,16 @@ const Dashboard = () => {
             }`}
             onClick={() => setActiveTab('comunidad')}
           >
-            Comunidad
+            {t('navCommunity')}
           </button>
           <button
             className="px-4 py-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200"
             onClick={logout}
           >
-            Cerrar sesión
+            {t('navLogout')}
           </button>
         </nav>
+        </div>
       </header>
       <main className="p-6">
         {activeTab === 'jardin' && <JardinView />}
@@ -73,9 +79,11 @@ const App = () => {
 };
 
 const AppWithProvider = () => (
-  <AuthProvider>
-    <App />
-  </AuthProvider>
+  <LanguageProvider>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </LanguageProvider>
 );
 
 export default AppWithProvider;

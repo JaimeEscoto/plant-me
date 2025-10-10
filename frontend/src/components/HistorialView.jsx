@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const ranges = [
-  { id: '7', label: 'Últimos 7 días', days: 7 },
-  { id: '30', label: 'Últimos 30 días', days: 30 },
-  { id: 'all', label: 'Todo el historial', days: null },
+  { id: '7', labelKey: 'historyRange7', days: 7 },
+  { id: '30', labelKey: 'historyRange30', days: 30 },
+  { id: 'all', labelKey: 'historyRangeAll', days: null },
 ];
 
 const HistorialView = () => {
   const { api, authHeaders, garden, fetchGarden, setGarden } = useAuth();
+  const { t, locale } = useLanguage();
   const [range, setRange] = useState(ranges[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -40,7 +42,7 @@ const HistorialView = () => {
       });
       setGarden((prev) => ({ ...(prev || {}), plantas: data.historial }));
     } catch (err) {
-      setError('No se pudo cargar el historial.');
+      setError(t('historyError'));
     } finally {
       setLoading(false);
     }
@@ -55,8 +57,8 @@ const HistorialView = () => {
     <section className="rounded-3xl bg-white p-6 shadow-lg">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gardenGreen">Historial de emociones</h2>
-          <p className="text-sm text-slate-500">Explora cómo ha evolucionado tu jardín mental.</p>
+          <h2 className="text-2xl font-bold text-gardenGreen">{t('historyTitle')}</h2>
+          <p className="text-sm text-slate-500">{t('historySubtitle')}</p>
         </div>
         <div className="flex gap-2">
           {ranges.map((option) => (
@@ -69,13 +71,13 @@ const HistorialView = () => {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
-      {loading && <p className="mt-4 text-sm text-slate-500">Cargando historial...</p>}
+      {loading && <p className="mt-4 text-sm text-slate-500">{t('historyLoading')}</p>}
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
       <div className="mt-6 space-y-3">
@@ -88,9 +90,9 @@ const HistorialView = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                  {plant.categoria || 'Sin categoría'}
+                  {plant.categoria || t('historyNoCategory')}
                 </p>
-                <p className="text-sm text-slate-600">{plant.descripcion || 'Sin descripción'}</p>
+                <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span
@@ -102,10 +104,14 @@ const HistorialView = () => {
                       : 'bg-slate-500'
                   }`}
                 >
-                  {plant.tipo}
+                  {plant.tipo === 'positivo'
+                    ? t('gardenTypePositive')
+                    : plant.tipo === 'negativo'
+                    ? t('gardenTypeNegative')
+                    : t('gardenTypeNeutral')}
                 </span>
                 <time className="text-xs text-slate-500">
-                  {new Date(plant.fecha_plantado).toLocaleString('es-ES', {
+                  {new Date(plant.fecha_plantado).toLocaleString(locale, {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}
@@ -114,7 +120,7 @@ const HistorialView = () => {
             </article>
           ))
         ) : (
-          <p className="text-sm text-slate-600">No hay eventos registrados en este periodo.</p>
+          <p className="text-sm text-slate-600">{t('historyEmptyRange')}</p>
         )}
       </div>
     </section>
