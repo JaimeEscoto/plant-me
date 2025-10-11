@@ -4,6 +4,7 @@ import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import Auth from './components/Auth';
 import JardinView from './components/JardinView';
 import ShopView from './components/ShopView';
+import SeedHistoryView from './components/SeedHistoryView';
 import HistorialView from './components/HistorialView';
 import ComunidadView from './components/ComunidadView';
 import LanguageSelector from './components/LanguageSelector';
@@ -49,6 +50,16 @@ const Dashboard = () => {
             </button>
             <button
               className={`px-4 py-2 rounded-full transition ${
+                activeTab === 'seed-history'
+                  ? 'bg-gardenGreen text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              onClick={() => setActiveTab('seed-history')}
+            >
+              {t('navSeedHistory')}
+            </button>
+            <button
+              className={`px-4 py-2 rounded-full transition ${
                 activeTab === 'historial'
                   ? 'bg-gardenGreen text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -79,6 +90,7 @@ const Dashboard = () => {
       <main className="p-6">
         {activeTab === 'jardin' && <JardinView />}
         {activeTab === 'shop' && <ShopView />}
+        {activeTab === 'seed-history' && <SeedHistoryView />}
         {activeTab === 'historial' && <HistorialView />}
         {activeTab === 'comunidad' && <ComunidadView />}
       </main>

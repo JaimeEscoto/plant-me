@@ -285,6 +285,26 @@ exports.getEconomyOverview = async (req, res, next) => {
   }
 };
 
+exports.getSeedTransferHistory = async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('semillas_transferencias')
+      .select(
+        'id, remitente_id, destinatario_id, cantidad, mensaje, estado, fecha_creacion, remitente:remitente_id ( id, nombre_usuario ), destinatario:destinatario_id ( id, nombre_usuario )'
+      )
+      .or(`remitente_id.eq.${req.user.id},destinatario_id.eq.${req.user.id}`)
+      .order('fecha_creacion', { ascending: false });
+
+    if (error) {
+      throw toHttpError(error, 'No se pudo obtener el historial de semillas.');
+    }
+
+    return res.json({ transferencias: data || [] });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 exports.listAccessories = async (req, res, next) => {
   try {
     const economy = await fetchUserEconomy(req.user.id);
