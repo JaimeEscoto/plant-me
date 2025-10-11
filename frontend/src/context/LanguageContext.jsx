@@ -59,6 +59,7 @@ const translations = {
   es: {
     headerTitle: 'Mi Jardín Mental',
     navGarden: 'Jardín',
+    navShop: 'Tienda',
     navHistory: 'Historial',
     navCommunity: 'Comunidad',
     navLogout: 'Cerrar sesión',
@@ -197,6 +198,7 @@ const translations = {
     economyMedalDescription: 'Una medalla por cada accesorio adquirido.',
     economyShopTitle: 'Tienda de accesorios',
     economyAccessoryOwnedLabel: 'Tienes {count}',
+    economyAccessoryTransferButton: 'Compartir',
     economyProcessing: 'Procesando...',
     economyBuyButton: 'Comprar',
     economySellButton: 'Vender (+{value} 🌱)',
@@ -242,6 +244,7 @@ const translations = {
   en: {
     headerTitle: 'My Mental Garden',
     navGarden: 'Garden',
+    navShop: 'Shop',
     navHistory: 'History',
     navCommunity: 'Community',
     navLogout: 'Log out',
@@ -380,6 +383,7 @@ const translations = {
     economyMedalDescription: 'One medal for every accessory you have purchased.',
     economyShopTitle: 'Accessory shop',
     economyAccessoryOwnedLabel: 'You own {count}',
+    economyAccessoryTransferButton: 'Share',
     economyProcessing: 'Processing...',
     economyBuyButton: 'Buy',
     economySellButton: 'Sell (+{value} 🌱)',
@@ -424,6 +428,7 @@ const translations = {
   fr: {
     headerTitle: 'Mon Jardin Mental',
     navGarden: 'Jardin',
+    navShop: 'Boutique',
     navHistory: 'Historique',
     navCommunity: 'Communauté',
     navLogout: 'Se déconnecter',
@@ -562,6 +567,7 @@ const translations = {
     economyMedalDescription: 'Une médaille pour chaque accessoire acheté.',
     economyShopTitle: 'Boutique d’accessoires',
     economyAccessoryOwnedLabel: 'Tu possèdes {count}',
+    economyAccessoryTransferButton: 'Partager',
     economyProcessing: 'Traitement...',
     economyBuyButton: 'Acheter',
     economySellButton: 'Vendre (+{value} 🌱)',
@@ -607,6 +613,7 @@ const translations = {
   ar: {
     headerTitle: 'حديقتي الذهنية',
     navGarden: 'الحديقة',
+    navShop: 'المتجر',
     navHistory: 'السجل',
     navCommunity: 'المجتمع',
     navLogout: 'تسجيل الخروج',
@@ -745,6 +752,7 @@ const translations = {
     economyMedalDescription: 'وسام لكل إكسسوار قمت بشرائه.',
     economyShopTitle: 'متجر الإكسسوارات',
     economyAccessoryOwnedLabel: 'لديك {count}',
+    economyAccessoryTransferButton: 'مشاركة',
     economyProcessing: 'جارٍ المعالجة...',
     economyBuyButton: 'شراء',
     economySellButton: 'بيع (+{value} 🌱)',
