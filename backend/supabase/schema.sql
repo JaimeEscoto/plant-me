@@ -10,8 +10,12 @@ create table if not exists public.usuarios (
   contrasena text not null,
   fecha_creacion timestamptz not null default timezone('utc', now()),
   semillas integer not null default 0,
-  medalla_compras integer not null default 0
+  medalla_compras integer not null default 0,
+  rol text not null default 'usuario'
 );
+
+alter table if exists public.usuarios
+  add column if not exists rol text not null default 'usuario';
 
 create table if not exists public.usuario_accesorios (
   id uuid primary key default uuid_generate_v4(),
