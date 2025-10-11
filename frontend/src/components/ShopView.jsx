@@ -15,9 +15,6 @@ const ShopView = () => {
     getEconomyOverview,
     purchaseAccessory,
     sellAccessory,
-    transferSeeds,
-    acceptSeedTransfer,
-    rejectSeedTransfer,
     transferAccessory,
     acceptAccessoryTransfer,
     rejectAccessoryTransfer,
@@ -31,7 +28,6 @@ const ShopView = () => {
   const [economyError, setEconomyError] = useState(null);
   const [shopFeedback, setShopFeedback] = useState(null);
   const [shopAction, setShopAction] = useState(null);
-  const [seedGiftForm, setSeedGiftForm] = useState({ destinatario: '', cantidad: 1, mensaje: '' });
 
   const loadEconomy = useCallback(async () => {
     if (!getEconomyOverview) return;
@@ -94,27 +90,12 @@ const ShopView = () => {
     [accessoryList, t]
   );
 
-  const seedTransfers = useMemo(
-    () => (Array.isArray(economy.transferencias?.semillas) ? economy.transferencias.semillas : []),
-    [economy.transferencias?.semillas]
-  );
-
   const accessoryTransfers = useMemo(
     () =>
       Array.isArray(economy.transferencias?.accesorios)
         ? economy.transferencias.accesorios
         : [],
     [economy.transferencias?.accesorios]
-  );
-
-  const incomingSeedTransfers = useMemo(
-    () => seedTransfers.filter((transfer) => transfer.destinatario_id === user?.id),
-    [seedTransfers, user?.id]
-  );
-
-  const outgoingSeedTransfers = useMemo(
-    () => seedTransfers.filter((transfer) => transfer.remitente_id === user?.id),
-    [seedTransfers, user?.id]
   );
 
   const incomingAccessoryTransfers = useMemo(
@@ -126,11 +107,6 @@ const ShopView = () => {
     () => accessoryTransfers.filter((transfer) => transfer.remitente_id === user?.id),
     [accessoryTransfers, user?.id]
   );
-
-  const handleSeedGiftChange = (event) => {
-    const { name, value } = event.target;
-    setSeedGiftForm((prev) => ({ ...prev, [name]: value }));
-  };
 
   const handlePurchaseAccessory = async (accessoryId) => {
     setShopAction(accessoryId);
@@ -227,62 +203,6 @@ const ShopView = () => {
       setShopFeedback(t('economyAccessoryTransferSuccess'));
     } catch (err) {
       setEconomyError(err.response?.data?.error || t('economyAccessoryTransferError'));
-    } finally {
-      setShopAction(null);
-      await loadEconomy();
-    }
-  };
-
-  const handleSeedTransfer = async (event) => {
-    event.preventDefault();
-    const cantidad = Number.parseInt(seedGiftForm.cantidad, 10);
-    if (!seedGiftForm.destinatario.trim() || Number.isNaN(cantidad) || cantidad <= 0) {
-      setEconomyError(t('economySeedTransferError'));
-      return;
-    }
-    setShopAction('seed-transfer');
-    setEconomyError(null);
-    setShopFeedback(null);
-    try {
-      await transferSeeds({
-        destinatario: seedGiftForm.destinatario.trim(),
-        cantidad,
-        mensaje: seedGiftForm.mensaje.trim(),
-      });
-      setSeedGiftForm({ destinatario: '', cantidad: 1, mensaje: '' });
-      setShopFeedback(t('economySeedTransferSuccess'));
-    } catch (err) {
-      setEconomyError(err.response?.data?.error || t('economySeedTransferError'));
-    } finally {
-      setShopAction(null);
-      await loadEconomy();
-    }
-  };
-
-  const handleAcceptSeedTransfer = async (transferId) => {
-    setShopAction(`accept-seed-${transferId}`);
-    setEconomyError(null);
-    setShopFeedback(null);
-    try {
-      await acceptSeedTransfer(transferId);
-      setShopFeedback(t('economyAcceptTransferSuccess'));
-    } catch (err) {
-      setEconomyError(err.response?.data?.error || t('economyTransferUpdateError'));
-    } finally {
-      setShopAction(null);
-      await loadEconomy();
-    }
-  };
-
-  const handleRejectSeedTransfer = async (transferId) => {
-    setShopAction(`reject-seed-${transferId}`);
-    setEconomyError(null);
-    setShopFeedback(null);
-    try {
-      await rejectSeedTransfer(transferId);
-      setShopFeedback(t('economyRejectTransferSuccess'));
-    } catch (err) {
-      setEconomyError(err.response?.data?.error || t('economyTransferUpdateError'));
     } finally {
       setShopAction(null);
       await loadEconomy();
@@ -435,188 +355,68 @@ const ShopView = () => {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
-            <h4 className="text-lg font-semibold text-gardenSoil">{t('economySeedTransferTitle')}</h4>
-            <p className="mt-1 text-sm text-slate-600">{t('economySeedTransferSubtitle')}</p>
-            <form className="mt-4 space-y-3" onSubmit={handleSeedTransfer}>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="destinatario">
-                  {t('economySeedTransferRecipient')}
-                </label>
-                <input
-                  id="destinatario"
-                  name="destinatario"
-                  value={seedGiftForm.destinatario}
-                  onChange={handleSeedGiftChange}
-                  className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
-                  placeholder={t('economySeedTransferRecipientPlaceholder')}
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="cantidad">
-                    {t('economySeedTransferAmount')}
-                  </label>
-                  <input
-                    id="cantidad"
-                    name="cantidad"
-                    type="number"
-                    min="1"
-                    value={seedGiftForm.cantidad}
-                    onChange={handleSeedGiftChange}
-                    className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="mensaje">
-                    {t('economySeedTransferMessage')}
-                  </label>
-                  <input
-                    id="mensaje"
-                    name="mensaje"
-                    value={seedGiftForm.mensaje}
-                    onChange={handleSeedGiftChange}
-                    className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
-                    placeholder={t('economySeedTransferMessagePlaceholder')}
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={shopAction === 'seed-transfer' || economyLoading}
-                className="w-full rounded-full bg-gardenGreen px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:bg-emerald-200"
-              >
-                {shopAction === 'seed-transfer' ? t('economyProcessing') : t('economySeedTransferSubmit')}
-              </button>
-            </form>
-
-            {incomingSeedTransfers.length > 0 && (
-              <div className="mt-6 space-y-2">
-                <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t('economyPendingSeedsIncomingLabel')}
-                </h5>
-                <ul className="space-y-2">
-                  {incomingSeedTransfers.map((transfer) => (
-                    <li key={transfer.id} className="rounded-2xl bg-emerald-50 p-3 shadow-sm">
-                      <p className="text-sm font-semibold text-emerald-700">
-                        {t('economySeedTransferFromLabel', {
-                          name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
-                          amount: transfer.cantidad,
-                        })}
-                      </p>
-                      <p className="mt-1 text-xs text-emerald-700">{formatDateTime(transfer.fecha_creacion)}</p>
-                      {transfer.mensaje && (
-                        <p className="mt-1 text-xs text-emerald-700">{transfer.mensaje}</p>
-                      )}
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAcceptSeedTransfer(transfer.id)}
-                          disabled={shopAction === `accept-seed-${transfer.id}`}
-                          className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-600 disabled:bg-emerald-200"
-                        >
-                          {shopAction === `accept-seed-${transfer.id}`
-                            ? t('economyProcessing')
-                            : t('economyAcceptButton')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRejectSeedTransfer(transfer.id)}
-                          disabled={shopAction === `reject-seed-${transfer.id}`}
-                          className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
-                        >
-                          {shopAction === `reject-seed-${transfer.id}`
-                            ? t('economyProcessing')
-                            : t('economyRejectButton')}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {outgoingSeedTransfers.length > 0 && (
-              <div className="mt-6 space-y-2">
-                <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t('economyPendingSeedsOutgoingLabel')}
-                </h5>
-                {outgoingSeedTransfers.map((transfer) => (
-                  <p key={transfer.id} className="text-xs text-slate-600">
-                    {t('economySeedTransferToLabel', {
-                      name: transfer.destinatario?.nombre_usuario || t('communityUnknownUser'),
+        <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
+          <h4 className="text-lg font-semibold text-gardenSoil">{t('economyAccessoryTransfersTitle')}</h4>
+          <p className="mt-1 text-sm text-slate-600">{t('economyAccessoryTransfersDescription')}</p>
+          <ul className="mt-4 space-y-3">
+            {incomingAccessoryTransfers.map((transfer) => {
+              const accessoryInfo = accessoryList.find((item) => item.id === transfer.accesorio_id);
+              return (
+                <li key={transfer.id} className="rounded-2xl bg-sky-50 p-3 shadow-sm">
+                  <p className="text-sm font-semibold text-sky-700">
+                    {t('economyAccessoryTransferFromLabel', {
+                      name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
+                      item: accessoryInfo?.nombre || transfer.accesorio_id,
                       amount: transfer.cantidad,
                     })}
                   </p>
-                ))}
-              </div>
-            )}
-          </div>
+                  <p className="mt-1 text-xs text-sky-700">{formatDateTime(transfer.fecha_creacion)}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptAccessoryTransfer(transfer.id)}
+                      disabled={shopAction === `accept-accessory-${transfer.id}`}
+                      className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-sky-600 disabled:bg-sky-200"
+                    >
+                      {shopAction === `accept-accessory-${transfer.id}`
+                        ? t('economyProcessing')
+                        : t('economyAcceptButton')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRejectAccessoryTransfer(transfer.id)}
+                      disabled={shopAction === `reject-accessory-${transfer.id}`}
+                      className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
+                    >
+                      {shopAction === `reject-accessory-${transfer.id}`
+                        ? t('economyProcessing')
+                        : t('economyRejectButton')}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
 
-          <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
-            <h4 className="text-lg font-semibold text-gardenSoil">{t('economyAccessoryTransfersTitle')}</h4>
-            <p className="mt-1 text-sm text-slate-600">{t('economyAccessoryTransfersDescription')}</p>
-            <ul className="mt-4 space-y-3">
-              {incomingAccessoryTransfers.map((transfer) => {
+          {outgoingAccessoryTransfers.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t('economyPendingAccessoriesOutgoingLabel')}
+              </h5>
+              {outgoingAccessoryTransfers.map((transfer) => {
                 const accessoryInfo = accessoryList.find((item) => item.id === transfer.accesorio_id);
                 return (
-                  <li key={transfer.id} className="rounded-2xl bg-sky-50 p-3 shadow-sm">
-                    <p className="text-sm font-semibold text-sky-700">
-                      {t('economyAccessoryTransferFromLabel', {
-                        name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
-                        item: accessoryInfo?.nombre || transfer.accesorio_id,
-                        amount: transfer.cantidad,
-                      })}
-                    </p>
-                    <p className="mt-1 text-xs text-sky-700">{formatDateTime(transfer.fecha_creacion)}</p>
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleAcceptAccessoryTransfer(transfer.id)}
-                        disabled={shopAction === `accept-accessory-${transfer.id}`}
-                        className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-sky-600 disabled:bg-sky-200"
-                      >
-                        {shopAction === `accept-accessory-${transfer.id}`
-                          ? t('economyProcessing')
-                          : t('economyAcceptButton')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRejectAccessoryTransfer(transfer.id)}
-                        disabled={shopAction === `reject-accessory-${transfer.id}`}
-                        className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
-                      >
-                        {shopAction === `reject-accessory-${transfer.id}`
-                          ? t('economyProcessing')
-                          : t('economyRejectButton')}
-                      </button>
-                    </div>
-                  </li>
+                  <p key={transfer.id} className="text-xs text-slate-600">
+                    {t('economyAccessoryTransferToLabel', {
+                      name: transfer.destinatario?.nombre_usuario || t('communityUnknownUser'),
+                      item: accessoryInfo?.nombre || transfer.accesorio_id,
+                      amount: transfer.cantidad,
+                    })}
+                  </p>
                 );
               })}
-            </ul>
-
-            {outgoingAccessoryTransfers.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t('economyPendingAccessoriesOutgoingLabel')}
-                </h5>
-                {outgoingAccessoryTransfers.map((transfer) => {
-                  const accessoryInfo = accessoryList.find((item) => item.id === transfer.accesorio_id);
-                  return (
-                    <p key={transfer.id} className="text-xs text-slate-600">
-                      {t('economyAccessoryTransferToLabel', {
-                        name: transfer.destinatario?.nombre_usuario || t('communityUnknownUser'),
-                        item: accessoryInfo?.nombre || transfer.accesorio_id,
-                        amount: transfer.cantidad,
-                      })}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
     </div>
