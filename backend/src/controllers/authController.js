@@ -63,6 +63,8 @@ exports.register = async (req, res, next) => {
         id: user.id,
         nombre_usuario: user.nombre_usuario,
         email: user.email,
+        semillas: user.semillas,
+        medalla_compras: user.medalla_compras,
         jardin: garden,
       },
     });
@@ -115,6 +117,8 @@ exports.login = async (req, res, next) => {
         id: user.id,
         nombre_usuario: user.nombre_usuario,
         email: user.email,
+        semillas: user.semillas,
+        medalla_compras: user.medalla_compras,
         jardin: garden,
       },
     });

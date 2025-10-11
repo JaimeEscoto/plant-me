@@ -359,11 +359,54 @@ const plantStages = [
   },
 ];
 
-const PlantHealthIllustration = ({ health = 0, dimension = 208, className = '', showStageLabel = false }) => {
+const PlantHealthIllustration = ({
+  health = 0,
+  dimension = 208,
+  className = '',
+  showStageLabel = false,
+  accessories = [],
+}) => {
   const normalizedHealth = clampHealth(health);
   const stageIndex = Math.min(10, Math.floor(normalizedHealth / 10));
 
   const stage = plantStages[stageIndex];
+
+  const accessorySlots = useMemo(
+    () => [
+      { x: 20, y: 42 },
+      { x: 140, y: 40 },
+      { x: 30, y: 84 },
+      { x: 130, y: 86 },
+      { x: 48, y: 26 },
+      { x: 112, y: 28 },
+      { x: 18, y: 126 },
+      { x: 142, y: 124 },
+      { x: 54, y: 144 },
+      { x: 108, y: 144 },
+    ],
+    []
+  );
+
+  const accessoryDecorations = useMemo(() => {
+    if (!Array.isArray(accessories) || !accessories.length) {
+      return [];
+    }
+
+    const owned = accessories.filter((item) => item?.cantidad > 0 && item?.icono);
+    if (!owned.length) {
+      return [];
+    }
+
+    return owned.map((item, index) => {
+      const slot = accessorySlots[index % accessorySlots.length];
+      return {
+        key: `${item.id}-${index}`,
+        icon: item.icono,
+        nombre: item.nombre,
+        ...slot,
+      };
+    });
+  }, [accessories, accessorySlots]);
 
   const leaves = useMemo(() => {
     const result = [];
@@ -535,6 +578,20 @@ const PlantHealthIllustration = ({ health = 0, dimension = 208, className = '', 
               fill={sparkle.color}
               opacity={sparkle.opacity ?? 0.65}
             />
+          ))}
+
+          {accessoryDecorations.map((decoration) => (
+            <text
+              key={decoration.key}
+              x={decoration.x}
+              y={decoration.y}
+              fontSize={14}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              aria-label={decoration.nombre}
+            >
+              {decoration.icon}
+            </text>
           ))}
 
           {starPoints && stage.crown && (

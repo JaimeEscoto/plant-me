@@ -71,6 +71,16 @@ Cada registro se traduce en el cuidado de una planta que simboliza tu estado int
 - `GET /api/jardin/historial`
 - `PUT /api/jardin/planta/:id`
 - `DELETE /api/jardin/planta/:id`
+- `GET /api/economia/resumen`
+- `GET /api/economia/accesorios`
+- `POST /api/economia/accesorios/:id/comprar`
+- `POST /api/economia/accesorios/:id/vender`
+- `POST /api/economia/accesorios/:id/transferir`
+- `POST /api/economia/accesorios/transferencias/:transferId/aceptar`
+- `POST /api/economia/accesorios/transferencias/:transferId/rechazar`
+- `POST /api/economia/semillas/transferir`
+- `POST /api/economia/semillas/:transferId/aceptar`
+- `POST /api/economia/semillas/:transferId/rechazar`
 
 La documentación detallada se encuentra en los controladores y rutas del directorio `backend/src`.
 
@@ -112,6 +122,16 @@ La aplicación quedará disponible en la URL indicada por Vite (por defecto `htt
 - `npm run preview`: Previsualiza la build.
 
 El código principal se encuentra en `frontend/src`.
+
+### Sistema de economía con semillas y accesorios
+
+La aplicación incluye un sistema de economía lúdica que utiliza semillas como moneda virtual. Algunos aspectos destacados:
+
+- Cada evento registrado en el jardín entrega semillas como recompensa.
+- Existe una tienda con 10 accesorios cosméticos que se pueden comprar con semillas; cada compra genera un evento positivo en el jardín, mejora su salud y aumenta la medalla de compras del perfil.
+- Los accesorios adquiridos se renderizan visualmente en la ilustración de la planta.
+- Es posible vender accesorios (recibiendo el 50 % del precio original) o transferirlos a otra persona usuaria, quien debe aceptar el regalo para incorporarlo a su inventario.
+- Las semillas también se pueden transferir entre usuarios a modo de regalo pendiente de aceptación.
 
 ### Usuario de prueba
 

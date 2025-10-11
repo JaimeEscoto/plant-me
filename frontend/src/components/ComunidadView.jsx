@@ -355,13 +355,21 @@ const ComunidadView = () => {
                         : 'border-slate-100 bg-slate-50 hover:border-gardenGreen/60 hover:bg-white'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-base font-semibold text-gardenSoil">{friend.nombre_usuario}</p>
-                      {health !== null && (
-                        <span className="text-sm font-semibold text-gardenGreen">
-                          {t('communityHealthLabel', { health })}
+                      <div className="flex items-center gap-2">
+                        {health !== null && (
+                          <span className="text-sm font-semibold text-gardenGreen">
+                            {t('communityHealthLabel', { health })}
+                          </span>
+                        )}
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-700"
+                          aria-label={t('economyMedalLabel')}
+                        >
+                          🏅 {friend.medalla_compras ?? 0}
                         </span>
-                      )}
+                      </div>
                     </div>
                     {friendshipDate && (
                       <p className="mt-1 text-xs text-slate-500">{t('communityFriendshipSince', { date: friendshipDate })}</p>
@@ -425,6 +433,14 @@ const ComunidadView = () => {
                         timeStyle: 'short',
                       })}
                     </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-700"
+                        aria-label={t('economyMedalLabel')}
+                      >
+                        🏅 {profile.usuario?.medalla_compras ?? 0}
+                      </span>
+                    </div>
                   </div>
                   <PlantHealthIllustration
                     health={profile.jardin.estado_salud}
