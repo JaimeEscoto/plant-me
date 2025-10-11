@@ -117,6 +117,10 @@ const translations = {
     gardenEditTitle: 'Actualizar descripción',
     gardenEditCancel: 'Cancelar',
     gardenEditUpdate: 'Actualizar',
+    gardenAccessoriesTitle: 'Accesorios del jardín',
+    gardenAccessoriesDescription: 'Todo lo que has añadido para decorar y cuidar tu planta.',
+    gardenAccessoriesEmpty: 'Todavía no tienes accesorios. Visita la tienda para conseguir el primero.',
+    gardenAccessoryQuantity: 'Cantidad: {count}',
 
     historyTitle: 'Historial de emociones',
     historySubtitle: 'Explora cómo ha evolucionado tu jardín mental.',
@@ -412,6 +416,10 @@ const translations = {
     gardenEditTitle: 'Update description',
     gardenEditCancel: 'Cancel',
     gardenEditUpdate: 'Update',
+    gardenAccessoriesTitle: 'Garden accessories',
+    gardenAccessoriesDescription: 'Everything you have added to decorate and care for your plant.',
+    gardenAccessoriesEmpty: 'You have no accessories yet. Visit the shop to get your first one.',
+    gardenAccessoryQuantity: 'Quantity: {count}',
 
     historyTitle: 'Emotion history',
     historySubtitle: 'Explore how your mental garden has evolved.',
@@ -706,6 +714,12 @@ const translations = {
     gardenEditTitle: 'Mettre à jour la description',
     gardenEditCancel: 'Annuler',
     gardenEditUpdate: 'Mettre à jour',
+    gardenAccessoriesTitle: 'Accessoires du jardin',
+    gardenAccessoriesDescription:
+      'Tout ce que tu as ajouté pour décorer et prendre soin de ta plante.',
+    gardenAccessoriesEmpty:
+      "Tu n'as pas encore d'accessoires. Visite la boutique pour obtenir le premier.",
+    gardenAccessoryQuantity: 'Quantité : {count}',
 
     historyTitle: 'Historique des émotions',
     historySubtitle: 'Explore comment ton jardin mental a évolué.',
@@ -1002,6 +1016,10 @@ const translations = {
     gardenEditTitle: 'تحديث الوصف',
     gardenEditCancel: 'إلغاء',
     gardenEditUpdate: 'تحديث',
+    gardenAccessoriesTitle: 'اكسسوارات الحديقة',
+    gardenAccessoriesDescription: 'كل ما أضفته لتزيين نباتك والعناية به.',
+    gardenAccessoriesEmpty: 'لا تملك أي اكسسوارات بعد. زر المتجر للحصول على أول قطعة.',
+    gardenAccessoryQuantity: 'الكمية: {count}',
 
     historyTitle: 'سجل المشاعر',
     historySubtitle: 'استكشف كيف تطورت حديقتك الذهنية.',

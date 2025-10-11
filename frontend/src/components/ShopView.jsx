@@ -152,6 +152,14 @@ const ShopView = () => {
           if (data?.jardin?.ultima_modificacion) {
             updated.ultima_modificacion = data.jardin.ultima_modificacion;
           }
+          const updatedAccessories = Array.isArray(data?.accesorios)
+            ? data.accesorios
+            : Array.isArray(data?.jardin?.accesorios)
+            ? data.jardin.accesorios
+            : null;
+          if (updatedAccessories) {
+            updated.accesorios = updatedAccessories;
+          }
           return updated;
         });
       }
