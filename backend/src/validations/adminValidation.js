@@ -1,7 +1,9 @@
 const Joi = require('joi');
 
 const userIdParamSchema = Joi.object({
-  userId: Joi.number().integer().positive().required(),
+  userId: Joi.string()
+    .guid({ version: ['uuidv4'] })
+    .required(),
 });
 
 const grantSeedsSchema = Joi.object({
