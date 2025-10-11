@@ -77,6 +77,23 @@ const ShopView = () => {
     [economy.accesorios]
   );
 
+  const localizedAccessoryList = useMemo(
+    () =>
+      accessoryList.map((item) => {
+        const nameKey = `economyAccessory_${item.id}_name`;
+        const descriptionKey = `economyAccessory_${item.id}_description`;
+        const translatedName = t(nameKey);
+        const translatedDescription = t(descriptionKey);
+        return {
+          ...item,
+          nombre: translatedName === nameKey ? item.nombre : translatedName,
+          descripcion:
+            translatedDescription === descriptionKey ? item.descripcion : translatedDescription,
+        };
+      }),
+    [accessoryList, t]
+  );
+
   const seedTransfers = useMemo(
     () => (Array.isArray(economy.transferencias?.semillas) ? economy.transferencias.semillas : []),
     [economy.transferencias?.semillas]
@@ -345,7 +362,7 @@ const ShopView = () => {
             )}
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {accessoryList.map((item) => {
+            {localizedAccessoryList.map((item) => {
               const canAfford = economy.semillas >= item.precio;
               const purchaseLoading = shopAction === item.id;
               const sellKey = `sell-${item.id}`;
@@ -425,7 +442,7 @@ const ShopView = () => {
                   value={seedGiftForm.destinatario}
                   onChange={handleSeedGiftChange}
                   className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
-                  placeholder={t('economySeedTransferPlaceholder')}
+                  placeholder={t('economySeedTransferRecipientPlaceholder')}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
