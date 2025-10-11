@@ -18,6 +18,10 @@ const AdminUserManagement = () => {
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
+  const selectedUser = useMemo(
+    () => users.find((user) => user.id === selectedUserId) || null,
+    [selectedUserId, users]
+  );
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -37,6 +41,14 @@ const AdminUserManagement = () => {
     loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    if (!selectedUserId) return;
+    const stillExists = users.some((user) => user.id === selectedUserId && user.rol !== 'admin');
+    if (!stillExists) {
+      setSelectedUserId('');
+    }
+  }, [selectedUserId, users]);
+
   const filteredUsers = useMemo(() => {
     if (!filter) return users;
     const normalized = filter.trim().toLowerCase();
@@ -46,6 +58,11 @@ const AdminUserManagement = () => {
         .some((field) => field.toLowerCase().includes(normalized))
     );
   }, [filter, users]);
+
+  const handleSelectUser = (userId) => {
+    setSelectedUserId(userId);
+    setFeedback(null);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -127,47 +144,71 @@ const AdminUserManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-800">{user.nombre_usuario}</div>
-                      {user.fecha_creacion ? (
-                        <div className="text-xs text-slate-500">
-                          {t('adminMemberSince', { date: dateFormatter.format(new Date(user.fecha_creacion)) })}
+                {filteredUsers.map((user) => {
+                  const isSelectable = user.rol !== 'admin';
+                  const isSelected = selectedUserId === user.id;
+                  return (
+                    <tr
+                      key={user.id}
+                      onClick={isSelectable ? () => handleSelectUser(user.id) : undefined}
+                      onKeyDown={
+                        isSelectable
+                          ? (event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                handleSelectUser(user.id);
+                              }
+                            }
+                          : undefined
+                      }
+                      tabIndex={isSelectable ? 0 : -1}
+                      className={`transition ${
+                        isSelectable
+                          ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 hover:bg-emerald-50/60'
+                          : ''
+                      } ${isSelected ? 'bg-emerald-50/80 ring-2 ring-emerald-200 ring-inset' : ''}`}
+                      aria-selected={isSelected}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-slate-800">{user.nombre_usuario}</div>
+                        {user.fecha_creacion ? (
+                          <div className="text-xs text-slate-500">
+                            {t('adminMemberSince', { date: dateFormatter.format(new Date(user.fecha_creacion)) })}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">
+                          {numberFormatter.format(user.semillas || 0)} 🌱
                         </div>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">
-                        {numberFormatter.format(user.semillas || 0)} 🌱
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">
-                        {numberFormatter.format(user.semillas_enviadas || 0)} 🌱
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {t('adminManageOperations', {
-                          count: numberFormatter.format(user.semillas_enviadas_operaciones || 0),
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">
-                        {numberFormatter.format(user.semillas_recibidas || 0)} 🌱
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {t('adminManageOperations', {
-                          count: numberFormatter.format(user.semillas_recibidas_operaciones || 0),
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {user.rol === 'admin' ? t('adminRoleAdmin') : t('adminRoleUser')}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">
+                          {numberFormatter.format(user.semillas_enviadas || 0)} 🌱
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {t('adminManageOperations', {
+                            count: numberFormatter.format(user.semillas_enviadas_operaciones || 0),
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-800">
+                          {numberFormatter.format(user.semillas_recibidas || 0)} 🌱
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {t('adminManageOperations', {
+                            count: numberFormatter.format(user.semillas_recibidas_operaciones || 0),
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {user.rol === 'admin' ? t('adminRoleAdmin') : t('adminRoleUser')}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -177,44 +218,48 @@ const AdminUserManagement = () => {
       <section className="rounded-2xl bg-white/70 p-5 shadow-sm ring-1 ring-white/60">
         <h3 className="text-lg font-semibold text-slate-900">{t('adminGrantTitle')}</h3>
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium text-slate-700">
-            {t('adminGrantUserLabel')}
-            <select
-              className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              value={selectedUserId}
-              onChange={(event) => setSelectedUserId(event.target.value)}
-            >
-              <option value="">{t('adminGrantUserPlaceholder')}</option>
-              {users
-                .filter((user) => user.rol !== 'admin')
-                .map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.nombre_usuario} · {numberFormatter.format(user.semillas || 0)} 🌱
-                  </option>
-                ))}
-            </select>
-          </label>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-sm text-slate-700">
+            {selectedUser ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  {t('adminGrantSelectedUserTitle')}
+                </span>
+                <div className="text-base font-semibold text-slate-900">{selectedUser.nombre_usuario}</div>
+                <div className="text-xs text-slate-600">{selectedUser.email}</div>
+                <div className="text-xs text-emerald-700">
+                  {t('adminGrantSelectedUserSeeds', {
+                    count: numberFormatter.format(selectedUser.semillas || 0),
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-slate-600">{t('adminGrantPendingHint')}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-600">{t('adminGrantSelectionHelp')}</p>
+            )}
+          </div>
 
           <label className="block text-sm font-medium text-slate-700">
             {t('adminGrantAmountLabel')}
             <input
               type="number"
               min="1"
-              className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               placeholder={t('adminGrantAmountPlaceholder')}
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
+              disabled={!selectedUser}
             />
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
             {t('adminGrantMessageLabel')}
             <textarea
-              className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               placeholder={t('adminGrantMessagePlaceholder')}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               rows={3}
+              disabled={!selectedUser}
             />
           </label>
 
@@ -232,7 +277,7 @@ const AdminUserManagement = () => {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !selectedUser}
             className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-300"
           >
             {submitting ? t('adminGrantProcessing') : t('adminGrantSubmit')}

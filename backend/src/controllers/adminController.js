@@ -319,43 +319,29 @@ exports.grantSeeds = async (req, res, next) => {
       return res.status(404).json({ error: 'El usuario indicado no existe.' });
     }
 
-    const nextSeedBalance = normalizeNumber(user.semillas) + value.cantidad;
+    const transferMessage = value.mensaje ? value.mensaje : 'Regalo administrativo';
 
-    const [{ data: updatedUser, error: updateError }, { data: transfer, error: transferError }] =
-      await Promise.all([
-        supabase
-          .from('usuarios')
-          .update({ semillas: nextSeedBalance })
-          .eq('id', targetUserId)
-          .select('id, nombre_usuario, email, semillas, medalla_compras, rol')
-          .single(),
-        supabase
-          .from('semillas_transferencias')
-          .insert({
-            remitente_id: req.user.id,
-            destinatario_id: targetUserId,
-            cantidad: value.cantidad,
-            mensaje: value.mensaje || 'Recarga administrativa',
-            estado: 'aceptado',
-          })
-          .select(
-            'id, cantidad, estado, fecha_creacion, remitente:remitente_id ( id, nombre_usuario ), destinatario:destinatario_id ( id, nombre_usuario )'
-          )
-          .single(),
-      ]);
-
-    if (updateError) {
-      throw toHttpError(updateError, 'No se pudo actualizar el saldo del usuario.');
-    }
+    const { data: transfer, error: transferError } = await supabase
+      .from('semillas_transferencias')
+      .insert({
+        remitente_id: req.user.id,
+        destinatario_id: targetUserId,
+        cantidad: value.cantidad,
+        mensaje: transferMessage,
+        estado: 'pendiente',
+      })
+      .select(
+        'id, cantidad, estado, mensaje, fecha_creacion, remitente:remitente_id ( id, nombre_usuario ), destinatario:destinatario_id ( id, nombre_usuario )'
+      )
+      .single();
 
     if (transferError) {
       throw toHttpError(transferError, 'No se pudo registrar la recarga de semillas.');
     }
 
-    return res.json({
-      usuario: updatedUser,
+    return res.status(201).json({
+      usuario: user,
       transferencia: transfer,
-      semillas_actuales: updatedUser.semillas,
     });
   } catch (err) {
     return next(err);
