@@ -23,6 +23,10 @@ const localeMap = {
   ar: 'ar-EG',
 };
 
+const directionMap = {
+  ar: 'rtl',
+};
+
 const getStoredLanguage = () => {
   if (typeof window === 'undefined') {
     return 'es';
@@ -634,6 +638,14 @@ export const LanguageProvider = ({ children }) => {
       const newUrl = `${newPathname}${url.search}${url.hash}`;
       window.history.replaceState(null, '', newUrl);
     }
+  }, [language]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const html = document.documentElement;
+    html.lang = localeMap[language] || localeMap.es;
+    html.dir = directionMap[language] || 'ltr';
   }, [language]);
 
   const t = useCallback(
