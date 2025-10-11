@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 router.get('/resumen', economyController.getEconomyOverview);
+router.get('/semillas/historial', economyController.getSeedTransferHistory);
 router.get('/accesorios', economyController.listAccessories);
 router.post('/accesorios/:id/comprar', economyController.purchaseAccessory);
 router.post('/accesorios/:id/vender', economyController.sellAccessory);

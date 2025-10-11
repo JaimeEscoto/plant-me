@@ -256,6 +256,12 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getSeedTransferHistory = useCallback(async () => {
+    if (!token) return { transferencias: [] };
+    const { data } = await api.get('/economia/semillas/historial', { headers: authHeaders });
+    return data;
+  }, [authHeaders, token]);
+
   const acceptSeedTransfer = useCallback(
     async (transferId) => {
       if (!token) return null;
@@ -328,6 +334,7 @@ export const AuthProvider = ({ children }) => {
     acceptAccessoryTransfer,
     rejectAccessoryTransfer,
     transferSeeds,
+    getSeedTransferHistory,
     acceptSeedTransfer,
     rejectSeedTransfer,
     getAdminDashboard,
