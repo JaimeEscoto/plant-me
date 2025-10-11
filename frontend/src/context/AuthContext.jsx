@@ -178,6 +178,106 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getEconomyOverview = useCallback(async () => {
+    if (!token) return null;
+    const { data } = await api.get('/economia/resumen', { headers: authHeaders });
+    return data;
+  }, [authHeaders, token]);
+
+  const purchaseAccessory = useCallback(
+    async (accessoryId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/economia/accesorios/${accessoryId}/comprar`, null, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const sellAccessory = useCallback(
+    async (accessoryId, payload = {}) => {
+      if (!token) return null;
+      const { data } = await api.post(`/economia/accesorios/${accessoryId}/vender`, payload, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const transferAccessory = useCallback(
+    async (accessoryId, payload) => {
+      if (!token) return null;
+      const { data } = await api.post(`/economia/accesorios/${accessoryId}/transferir`, payload, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const acceptAccessoryTransfer = useCallback(
+    async (transferId) => {
+      if (!token) return null;
+      const { data } = await api.post(
+        `/economia/accesorios/transferencias/${transferId}/aceptar`,
+        null,
+        {
+          headers: authHeaders,
+        }
+      );
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const rejectAccessoryTransfer = useCallback(
+    async (transferId) => {
+      if (!token) return null;
+      const { data } = await api.post(
+        `/economia/accesorios/transferencias/${transferId}/rechazar`,
+        null,
+        {
+          headers: authHeaders,
+        }
+      );
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const transferSeeds = useCallback(
+    async (payload) => {
+      if (!token) return null;
+      const { data } = await api.post('/economia/semillas/transferir', payload, { headers: authHeaders });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const acceptSeedTransfer = useCallback(
+    async (transferId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/economia/semillas/${transferId}/aceptar`, null, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
+  const rejectSeedTransfer = useCallback(
+    async (transferId) => {
+      if (!token) return null;
+      const { data } = await api.post(`/economia/semillas/${transferId}/rechazar`, null, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -198,6 +298,15 @@ export const AuthProvider = ({ children }) => {
     togglePlantLike,
     createPlantComment,
     toggleCommentLike,
+    getEconomyOverview,
+    purchaseAccessory,
+    sellAccessory,
+    transferAccessory,
+    acceptAccessoryTransfer,
+    rejectAccessoryTransfer,
+    transferSeeds,
+    acceptSeedTransfer,
+    rejectSeedTransfer,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

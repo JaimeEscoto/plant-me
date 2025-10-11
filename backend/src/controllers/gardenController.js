@@ -6,6 +6,8 @@ const {
   historyQuerySchema,
 } = require('../validations/gardenValidation');
 
+const EVENT_SEED_REWARD = Number(process.env.EVENT_SEED_REWARD || 5);
+
 const adjustGardenHealth = (currentHealth, tipo, manualDelta) => {
   let delta;
   if (typeof manualDelta === 'number') {
@@ -71,6 +73,20 @@ exports.createPlant = async (req, res, next) => {
       return res.status(404).json({ error: 'Jardín no encontrado.' });
     }
 
+    const { data: userRow, error: userError } = await supabase
+      .from('usuarios')
+      .select('id, semillas')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    if (userError) {
+      throw toHttpError(userError, 'No se pudo obtener la información del usuario.');
+    }
+
+    if (!userRow) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
     const { data: plant, error: createError } = await supabase
       .from('plantas')
       .insert({
@@ -100,7 +116,19 @@ exports.createPlant = async (req, res, next) => {
       throw toHttpError(updateGardenError, 'No se pudo actualizar el estado del jardín.');
     }
 
-    return res.status(201).json({ plant, jardin: updatedGarden });
+    const nextSeedBalance = (userRow.semillas || 0) + EVENT_SEED_REWARD;
+    const { data: updatedUser, error: updateUserError } = await supabase
+      .from('usuarios')
+      .update({ semillas: nextSeedBalance })
+      .eq('id', req.user.id)
+      .select('id, semillas, medalla_compras')
+      .single();
+
+    if (updateUserError) {
+      throw toHttpError(updateUserError, 'No se pudo actualizar el saldo de semillas.');
+    }
+
+    return res.status(201).json({ plant, jardin: updatedGarden, semillas: updatedUser.semillas });
   } catch (err) {
     return next(err);
   }

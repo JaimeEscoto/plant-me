@@ -8,8 +8,45 @@ create table if not exists public.usuarios (
   nombre_usuario text not null unique,
   email text not null unique,
   contrasena text not null,
+  fecha_creacion timestamptz not null default timezone('utc', now()),
+  semillas integer not null default 0,
+  medalla_compras integer not null default 0
+);
+
+create table if not exists public.usuario_accesorios (
+  id uuid primary key default uuid_generate_v4(),
+  usuario_id uuid not null references public.usuarios(id) on delete cascade,
+  accesorio_id text not null,
+  cantidad integer not null default 0 check (cantidad >= 0),
+  fecha_actualizacion timestamptz not null default timezone('utc', now()),
+  constraint usuario_accesorios_unicos unique (usuario_id, accesorio_id)
+);
+
+create table if not exists public.semillas_transferencias (
+  id uuid primary key default uuid_generate_v4(),
+  remitente_id uuid not null references public.usuarios(id) on delete cascade,
+  destinatario_id uuid not null references public.usuarios(id) on delete cascade,
+  cantidad integer not null check (cantidad > 0),
+  mensaje text,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'aceptado', 'rechazado')),
   fecha_creacion timestamptz not null default timezone('utc', now())
 );
+
+create index if not exists semillas_transferencias_destinatario_idx on public.semillas_transferencias (destinatario_id);
+create index if not exists semillas_transferencias_remitente_idx on public.semillas_transferencias (remitente_id);
+
+create table if not exists public.accesorios_transferencias (
+  id uuid primary key default uuid_generate_v4(),
+  remitente_id uuid not null references public.usuarios(id) on delete cascade,
+  destinatario_id uuid not null references public.usuarios(id) on delete cascade,
+  accesorio_id text not null,
+  cantidad integer not null check (cantidad > 0),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'aceptado', 'rechazado')),
+  fecha_creacion timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists accesorios_transferencias_destinatario_idx on public.accesorios_transferencias (destinatario_id);
+create index if not exists accesorios_transferencias_remitente_idx on public.accesorios_transferencias (remitente_id);
 
 create table if not exists public.jardines (
   id uuid primary key default uuid_generate_v4(),
@@ -92,6 +129,11 @@ values (
 )
 on conflict (id) do nothing;
 
+update public.usuarios
+set semillas = 120,
+    medalla_compras = 3
+where id = '21dccfd0-b9de-46a1-b4b7-2797a0029a18';
+
 insert into public.jardines (id, usuario_id, estado_salud, ultima_modificacion)
 values (
   'ee6d89ea-b79f-4268-8f95-0debf9818eb3',
@@ -131,3 +173,9 @@ values
     'Tomé 20 minutos para respirar con calma y recargar energías.'
   )
 on conflict (id) do nothing;
+
+insert into public.usuario_accesorios (usuario_id, accesorio_id, cantidad)
+values
+  ('21dccfd0-b9de-46a1-b4b7-2797a0029a18', 'sombrero_floral', 1),
+  ('21dccfd0-b9de-46a1-b4b7-2797a0029a18', 'maceta_arcoiris', 1)
+on conflict (usuario_id, accesorio_id) do update set cantidad = excluded.cantidad;

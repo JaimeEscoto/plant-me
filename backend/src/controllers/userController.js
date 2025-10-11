@@ -42,7 +42,7 @@ const fetchFriendsSummaries = async (friendEntries) => {
   const [{ data: users, error: usersError }, { data: gardens, error: gardensError }] = await Promise.all([
     supabase
       .from('usuarios')
-      .select('id, nombre_usuario, fecha_creacion')
+      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas')
       .in('id', friendIds),
     supabase
       .from('jardines')
@@ -75,6 +75,8 @@ const fetchFriendsSummaries = async (friendEntries) => {
         id: user.id,
         nombre_usuario: user.nombre_usuario,
         fecha_union: entry.fechaAmistad || null,
+        medalla_compras: user.medalla_compras || 0,
+        semillas: user.semillas || 0,
         jardin: garden
           ? {
               id: garden.id,
@@ -93,7 +95,7 @@ const fetchUserProfile = async (userId, currentUserId) => {
   const [{ data: user, error: userError }, { data: garden, error: gardenError }] = await Promise.all([
     supabase
       .from('usuarios')
-      .select('id, nombre_usuario, fecha_creacion')
+      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas')
       .eq('id', userId)
       .maybeSingle(),
     supabase
