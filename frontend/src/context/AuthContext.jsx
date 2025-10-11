@@ -278,6 +278,29 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getAdminDashboard = useCallback(async () => {
+    if (!token) return null;
+    const { data } = await api.get('/admin/dashboard', { headers: authHeaders });
+    return data;
+  }, [authHeaders, token]);
+
+  const getAdminUsers = useCallback(async () => {
+    if (!token) return [];
+    const { data } = await api.get('/admin/usuarios', { headers: authHeaders });
+    return data?.usuarios || [];
+  }, [authHeaders, token]);
+
+  const grantSeeds = useCallback(
+    async (userId, payload) => {
+      if (!token) return null;
+      const { data } = await api.post(`/admin/usuarios/${userId}/semillas`, payload, {
+        headers: authHeaders,
+      });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -307,6 +330,9 @@ export const AuthProvider = ({ children }) => {
     transferSeeds,
     acceptSeedTransfer,
     rejectSeedTransfer,
+    getAdminDashboard,
+    getAdminUsers,
+    grantSeeds,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

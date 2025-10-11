@@ -37,6 +37,7 @@ exports.register = async (req, res, next) => {
         nombre_usuario: value.nombre_usuario,
         email: value.email,
         contrasena: hashedPassword,
+        rol: 'usuario',
       })
       .select()
       .single();
@@ -65,6 +66,7 @@ exports.register = async (req, res, next) => {
         email: user.email,
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
+        rol: user.rol || 'usuario',
         jardin: garden,
       },
     });
@@ -119,6 +121,7 @@ exports.login = async (req, res, next) => {
         email: user.email,
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
+        rol: user.rol || 'usuario',
         jardin: garden,
       },
     });

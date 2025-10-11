@@ -8,6 +8,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const gardenRoutes = require('./src/routes/gardenRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const economyRoutes = require('./src/routes/economyRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jardin', gardenRoutes);
 app.use('/api/usuarios', userRoutes);
 app.use('/api/economia', economyRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Mi Jardín Mental API is running' });

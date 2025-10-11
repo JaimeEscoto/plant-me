@@ -7,6 +7,7 @@ import ShopView from './components/ShopView';
 import HistorialView from './components/HistorialView';
 import ComunidadView from './components/ComunidadView';
 import LanguageSelector from './components/LanguageSelector';
+import AdminArea from './components/AdminArea';
 
 const Dashboard = () => {
   const { garden, fetchGarden, logout } = useAuth();
@@ -86,8 +87,17 @@ const Dashboard = () => {
 };
 
 const App = () => {
-  const { token } = useAuth();
-  return token ? <Dashboard /> : <Auth />;
+  const { token, user } = useAuth();
+
+  if (!token) {
+    return <Auth />;
+  }
+
+  if (user?.rol === 'admin') {
+    return <AdminArea />;
+  }
+
+  return <Dashboard />;
 };
 
 const AppWithProvider = () => (

@@ -13,7 +13,7 @@ module.exports = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { data: user, error } = await supabase
       .from('usuarios')
-      .select('id, nombre_usuario, email, semillas, medalla_compras')
+      .select('id, nombre_usuario, email, semillas, medalla_compras, rol')
       .eq('id', decoded.id)
       .maybeSingle();
 
