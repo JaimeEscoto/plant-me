@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useEventTypes } from '../context/EventTypeContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 
 const ComunidadView = () => {
@@ -37,6 +38,7 @@ const ComunidadView = () => {
   const [commentDrafts, setCommentDrafts] = useState({});
   const [commentSubmittingId, setCommentSubmittingId] = useState(null);
   const [commentErrors, setCommentErrors] = useState({});
+  const { getLabelForType, getEventTypeByCode } = useEventTypes();
 
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true);
@@ -253,8 +255,10 @@ const ComunidadView = () => {
   );
 
   const renderEventBadge = (tipo) => {
-    if (tipo === 'positivo') return 'bg-emerald-500';
-    if (tipo === 'negativo') return 'bg-rose-500';
+    const info = getEventTypeByCode(tipo);
+    if (!info) return 'bg-slate-500';
+    if (info.plantDelta > 0) return 'bg-emerald-500';
+    if (info.plantDelta < 0) return 'bg-rose-500';
     return 'bg-slate-500';
   };
 
@@ -383,11 +387,7 @@ const ComunidadView = () => {
                             lastEvent.tipo
                           )}`}
                         >
-                          {lastEvent.tipo === 'positivo'
-                            ? t('gardenTypePositive')
-                            : lastEvent.tipo === 'negativo'
-                            ? t('gardenTypeNegative')
-                            : t('gardenTypeNeutral')}
+                          {getLabelForType(lastEvent.tipo)}
                         </span>
                       </p>
                     ) : (
@@ -472,11 +472,7 @@ const ComunidadView = () => {
                             plant.tipo
                           )}`}
                         >
-                          {plant.tipo === 'positivo'
-                            ? t('gardenTypePositive')
-                            : plant.tipo === 'negativo'
-                            ? t('gardenTypeNegative')
-                            : t('gardenTypeNeutral')}
+                          {getLabelForType(plant.tipo)}
                         </span>
                       </div>
                       <p className="mt-2 text-sm text-slate-600">{plant.descripcion || t('communityNoDescriptionAvailable')}</p>

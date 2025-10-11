@@ -3,7 +3,7 @@ const Joi = require('joi');
 exports.createPlantSchema = Joi.object({
   nombre: Joi.string().trim().min(2).max(60).required(),
   categoria: Joi.string().trim().min(2).max(40).required(),
-  tipo: Joi.string().valid('positivo', 'negativo', 'neutro').required(),
+  tipo: Joi.string().trim().min(2).max(60).required(),
   descripcion: Joi.string().trim().max(500).allow('', null),
 });
 

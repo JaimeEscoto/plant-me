@@ -60,15 +60,37 @@ create table if not exists public.jardines (
   constraint jardines_usuario_unico unique (usuario_id)
 );
 
+create table if not exists public.event_types (
+  id uuid primary key default uuid_generate_v4(),
+  code text not null unique,
+  plant_delta integer not null default 0,
+  remove_delta integer not null default 0,
+  position integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.event_type_translations (
+  id uuid primary key default uuid_generate_v4(),
+  event_type_id uuid not null references public.event_types(id) on delete cascade,
+  language text not null,
+  label text not null,
+  constraint event_type_translations_unique unique (event_type_id, language)
+);
+
 create table if not exists public.plantas (
   id uuid primary key default uuid_generate_v4(),
   jardin_id uuid not null references public.jardines(id) on delete cascade,
   nombre text not null,
   categoria text not null,
-  tipo text not null check (tipo in ('positivo', 'negativo', 'neutro')),
+  tipo text not null references public.event_types(code) on update cascade,
   fecha_plantado timestamptz not null default timezone('utc', now()),
   descripcion text
 );
+
+alter table if exists public.plantas drop constraint if exists plantas_tipo_check;
+alter table if exists public.plantas drop constraint if exists plantas_tipo_fkey;
+alter table if exists public.plantas
+  add constraint plantas_tipo_fkey foreign key (tipo) references public.event_types(code) on update cascade;
 
 create index if not exists plantas_jardin_id_idx on public.plantas (jardin_id);
 create index if not exists plantas_jardin_fecha_idx on public.plantas (jardin_id, fecha_plantado desc);
@@ -146,6 +168,37 @@ values (
   timezone('utc', now()) - interval '2 days'
 )
 on conflict (id) do nothing;
+
+insert into public.event_types (code, plant_delta, remove_delta, position)
+values
+  ('positivo', 5, -5, 0),
+  ('negativo', -5, 5, 1),
+  ('neutro', 0, -2, 2)
+on conflict (code) do update
+set
+  plant_delta = excluded.plant_delta,
+  remove_delta = excluded.remove_delta,
+  position = excluded.position;
+
+insert into public.event_type_translations (event_type_id, language, label)
+select et.id, v.language, v.label
+from public.event_types et
+join (
+  values
+    ('positivo', 'es', 'Positivo'),
+    ('positivo', 'en', 'Positive'),
+    ('positivo', 'fr', 'Positif'),
+    ('positivo', 'ar', 'إيجابي'),
+    ('negativo', 'es', 'Negativo'),
+    ('negativo', 'en', 'Negative'),
+    ('negativo', 'fr', 'Négatif'),
+    ('negativo', 'ar', 'سلبي'),
+    ('neutro', 'es', 'Neutro'),
+    ('neutro', 'en', 'Neutral'),
+    ('neutro', 'fr', 'Neutre'),
+    ('neutro', 'ar', 'محايد')
+) as v(code, language, label) on v.code = et.code
+on conflict (event_type_id, language) do update set label = excluded.label;
 
 insert into public.plantas (id, jardin_id, nombre, categoria, tipo, fecha_plantado, descripcion)
 values

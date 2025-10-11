@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useEventTypes } from '../context/EventTypeContext';
 
 const SummaryCard = ({ title, value, helper }) => (
   <div className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
@@ -61,6 +62,7 @@ const StatusPill = ({ label }) => (
 const AdminDashboard = () => {
   const { getAdminDashboard } = useAuth();
   const { t, locale } = useLanguage();
+  const { getLabelForType } = useEventTypes();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,12 +78,7 @@ const AdminDashboard = () => {
     [locale]
   );
 
-  const translateEventType = (tipo) => {
-    if (tipo === 'positivo') return t('gardenTypePositive');
-    if (tipo === 'negativo') return t('gardenTypeNegative');
-    if (tipo === 'neutral') return t('gardenTypeNeutral');
-    return tipo;
-  };
+  const translateEventType = useCallback((tipo) => getLabelForType(tipo), [getLabelForType]);
 
   useEffect(() => {
     let isMounted = true;

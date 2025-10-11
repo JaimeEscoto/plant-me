@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.use(authMiddleware);
 
 router.get('/', gardenController.getGarden);
+router.get('/tipos-evento', gardenController.getEventTypes);
 router.post('/planta', gardenController.createPlant);
 router.get('/historial', gardenController.getHistory);
 router.put('/planta/:id', gardenController.updatePlant);
