@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useEventTypes } from '../context/EventTypeContext';
 
 const ranges = [
   { id: '7', labelKey: 'historyRange7', days: 7 },
@@ -11,6 +12,7 @@ const ranges = [
 const HistorialView = () => {
   const { api, authHeaders, garden, fetchGarden, setGarden } = useAuth();
   const { t, locale } = useLanguage();
+  const { getLabelForType, getEventTypeByCode } = useEventTypes();
   const [range, setRange] = useState(ranges[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -96,19 +98,15 @@ const HistorialView = () => {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${
-                    plant.tipo === 'positivo'
-                      ? 'bg-emerald-500'
-                      : plant.tipo === 'negativo'
-                      ? 'bg-rose-500'
-                      : 'bg-slate-500'
-                  }`}
+                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${(() => {
+                    const info = getEventTypeByCode(plant.tipo);
+                    if (!info) return 'bg-slate-500';
+                    if (info.plantDelta > 0) return 'bg-emerald-500';
+                    if (info.plantDelta < 0) return 'bg-rose-500';
+                    return 'bg-slate-500';
+                  })()}`}
                 >
-                  {plant.tipo === 'positivo'
-                    ? t('gardenTypePositive')
-                    : plant.tipo === 'negativo'
-                    ? t('gardenTypeNegative')
-                    : t('gardenTypeNeutral')}
+                  {getLabelForType(plant.tipo)}
                 </span>
                 <time className="text-xs text-slate-500">
                   {new Date(plant.fecha_plantado).toLocaleString(locale, {

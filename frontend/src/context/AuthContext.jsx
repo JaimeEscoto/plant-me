@@ -307,6 +307,41 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getAdminEventTypes = useCallback(async () => {
+    if (!token) return [];
+    const { data } = await api.get('/admin/config/event-types', { headers: authHeaders });
+    return data?.eventTypes || [];
+  }, [authHeaders, token]);
+
+  const createAdminEventType = useCallback(
+    async (payload) => {
+      if (!token) return null;
+      const { data } = await api.post('/admin/config/event-types', payload, { headers: authHeaders });
+      return data?.eventType || null;
+    },
+    [authHeaders, token]
+  );
+
+  const updateAdminEventType = useCallback(
+    async (eventTypeId, payload) => {
+      if (!token) return null;
+      const { data } = await api.put(`/admin/config/event-types/${eventTypeId}`, payload, {
+        headers: authHeaders,
+      });
+      return data?.eventType || null;
+    },
+    [authHeaders, token]
+  );
+
+  const deleteAdminEventType = useCallback(
+    async (eventTypeId) => {
+      if (!token) return null;
+      await api.delete(`/admin/config/event-types/${eventTypeId}`, { headers: authHeaders });
+      return true;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -340,6 +375,10 @@ export const AuthProvider = ({ children }) => {
     getAdminDashboard,
     getAdminUsers,
     grantSeeds,
+    getAdminEventTypes,
+    createAdminEventType,
+    updateAdminEventType,
+    deleteAdminEventType,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

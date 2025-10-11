@@ -9,13 +9,7 @@ const {
 
 const EVENT_SEED_REWARD = Number(process.env.EVENT_SEED_REWARD || 5);
 
-const adjustGardenHealth = (currentHealth, tipo, manualDelta) => {
-  let delta;
-  if (typeof manualDelta === 'number') {
-    delta = manualDelta;
-  } else {
-    delta = tipo === 'positivo' ? 5 : tipo === 'negativo' ? -5 : 0;
-  }
+const adjustGardenHealth = (currentHealth, delta = 0) => {
   const nextHealth = Math.max(0, Math.min(100, currentHealth + delta));
   return nextHealth;
 };
@@ -99,13 +93,27 @@ exports.createPlant = async (req, res, next) => {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
+    const { data: eventType, error: eventTypeError } = await supabase
+      .from('event_types')
+      .select('id, code, plant_delta')
+      .eq('code', value.tipo)
+      .maybeSingle();
+
+    if (eventTypeError) {
+      throw toHttpError(eventTypeError, 'No se pudo validar el tipo de evento.');
+    }
+
+    if (!eventType) {
+      return res.status(400).json({ error: 'Tipo de evento no válido.' });
+    }
+
     const { data: plant, error: createError } = await supabase
       .from('plantas')
       .insert({
         jardin_id: garden.id,
         nombre: value.nombre,
         categoria: value.categoria,
-        tipo: value.tipo,
+        tipo: eventType.code,
         descripcion: value.descripcion,
       })
       .select()
@@ -115,7 +123,7 @@ exports.createPlant = async (req, res, next) => {
       throw toHttpError(createError, 'No se pudo crear la planta en Supabase.');
     }
 
-    const updatedGardenHealth = adjustGardenHealth(garden.estado_salud, value.tipo);
+    const updatedGardenHealth = adjustGardenHealth(garden.estado_salud, eventType.plant_delta);
     const now = new Date().toISOString();
     const { data: updatedGarden, error: updateGardenError } = await supabase
       .from('jardines')
@@ -263,8 +271,18 @@ exports.deletePlant = async (req, res, next) => {
       throw toHttpError(deleteError, 'No se pudo eliminar la planta en Supabase.');
     }
 
-    const delta = plant.tipo === 'positivo' ? -5 : plant.tipo === 'negativo' ? 5 : -2;
-    const updatedHealth = adjustGardenHealth(garden.estado_salud, plant.tipo, delta);
+    const { data: eventType, error: eventTypeError } = await supabase
+      .from('event_types')
+      .select('remove_delta')
+      .eq('code', plant.tipo)
+      .maybeSingle();
+
+    if (eventTypeError) {
+      throw toHttpError(eventTypeError, 'No se pudo validar el tipo de evento.');
+    }
+
+    const delta = eventType?.remove_delta ?? 0;
+    const updatedHealth = adjustGardenHealth(garden.estado_salud, delta);
     const { error: updateGardenError } = await supabase
       .from('jardines')
       .update({
@@ -278,6 +296,45 @@ exports.deletePlant = async (req, res, next) => {
     }
 
     return res.status(204).send();
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getEventTypes = async (req, res, next) => {
+  try {
+    const requestedLanguage =
+      typeof req.query.lang === 'string' && req.query.lang.trim().length
+        ? req.query.lang.trim().toLowerCase()
+        : 'es';
+
+    const { data, error } = await supabase
+      .from('event_types')
+      .select('id, code, plant_delta, remove_delta, position, event_type_translations(language, label)')
+      .order('position', { ascending: true })
+      .order('code', { ascending: true });
+
+    if (error) {
+      throw toHttpError(error, 'No se pudieron obtener los tipos de evento.');
+    }
+
+    const eventTypes = (data || []).map((item) => {
+      const translations = Array.isArray(item.event_type_translations)
+        ? item.event_type_translations
+        : [];
+      const preferred = translations.find((translation) => translation.language === requestedLanguage);
+      const fallback = translations.find((translation) => translation.language === 'es');
+
+      return {
+        code: item.code,
+        label: preferred?.label || fallback?.label || item.code,
+        plantDelta: item.plant_delta,
+        removeDelta: item.remove_delta,
+        position: item.position,
+      };
+    });
+
+    return res.json(eventTypes);
   } catch (err) {
     return next(err);
   }

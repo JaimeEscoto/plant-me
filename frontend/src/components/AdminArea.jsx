@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import LanguageSelector from './LanguageSelector';
 import AdminDashboard from './AdminDashboard';
 import AdminUserManagement from './AdminUserManagement';
+import AdminSettings from './AdminSettings';
 
 const AdminArea = () => {
   const { user, logout } = useAuth();
@@ -46,6 +47,17 @@ const AdminArea = () => {
             </button>
             <button
               type="button"
+              className={`px-4 py-2 rounded-full transition ${
+                activeTab === 'settings'
+                  ? 'bg-emerald-500 text-white shadow'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              onClick={() => setActiveTab('settings')}
+            >
+              {t('adminNavSettings')}
+            </button>
+            <button
+              type="button"
               className="px-4 py-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200"
               onClick={logout}
             >
@@ -55,7 +67,9 @@ const AdminArea = () => {
         </div>
       </header>
       <main className="p-6">
-        {activeTab === 'dashboard' ? <AdminDashboard /> : <AdminUserManagement />}
+        {activeTab === 'dashboard' && <AdminDashboard />}
+        {activeTab === 'monedas' && <AdminUserManagement />}
+        {activeTab === 'settings' && <AdminSettings />}
       </main>
     </div>
   );

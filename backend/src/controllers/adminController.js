@@ -1,6 +1,12 @@
 const supabase = require('../lib/supabaseClient');
 const { toHttpError } = require('../utils/supabase');
 const { grantSeedsSchema, userIdParamSchema } = require('../validations/adminValidation');
+const {
+  SUPPORTED_LANGUAGES,
+  createEventTypeSchema,
+  updateEventTypeSchema,
+  eventTypeIdParamSchema,
+} = require('../validations/eventTypeValidation');
 
 const normalizeNumber = (value) => Number.parseFloat(Number(value) || 0);
 
@@ -14,6 +20,45 @@ const buildTopList = (entriesMap, usersById, limit = 5) =>
     .filter((entry) => Boolean(entry.nombre_usuario))
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
+
+const mapEventTypeRow = (row) => {
+  const translations = Array.isArray(row?.event_type_translations) ? row.event_type_translations : [];
+  const labels = translations.reduce((acc, translation) => {
+    if (translation?.language) {
+      acc[translation.language] = translation.label || '';
+    }
+    return acc;
+  }, {});
+
+  SUPPORTED_LANGUAGES.forEach((language) => {
+    if (!Object.prototype.hasOwnProperty.call(labels, language)) {
+      labels[language] = '';
+    }
+  });
+
+  return {
+    id: row.id,
+    code: row.code,
+    plantDelta: row.plant_delta,
+    removeDelta: row.remove_delta,
+    position: row.position,
+    labels,
+  };
+};
+
+const fetchEventTypeRowById = async (eventTypeId) => {
+  const { data, error } = await supabase
+    .from('event_types')
+    .select('id, code, plant_delta, remove_delta, position, event_type_translations(language, label)')
+    .eq('id', eventTypeId)
+    .maybeSingle();
+
+  if (error) {
+    throw toHttpError(error, 'No se pudo obtener la información del tipo de evento.');
+  }
+
+  return data;
+};
 
 exports.getDashboard = async (req, res, next) => {
   try {
@@ -343,6 +388,228 @@ exports.grantSeeds = async (req, res, next) => {
       usuario: user,
       transferencia: transfer,
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.listEventTypes = async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('event_types')
+      .select('id, code, plant_delta, remove_delta, position, event_type_translations(language, label)')
+      .order('position', { ascending: true })
+      .order('code', { ascending: true });
+
+    if (error) {
+      throw toHttpError(error, 'No se pudieron obtener los tipos de evento.');
+    }
+
+    const eventTypes = (data || []).map(mapEventTypeRow);
+
+    return res.json({ eventTypes });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.createEventType = async (req, res, next) => {
+  try {
+    const { value, error } = createEventTypeSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    const insertPayload = {
+      code: value.code,
+      plant_delta: value.plantDelta,
+      remove_delta: value.removeDelta,
+      position: value.position ?? 0,
+    };
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('event_types')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return res.status(409).json({ error: 'Ya existe un tipo de evento con ese código.' });
+      }
+      throw toHttpError(insertError, 'No se pudo crear el tipo de evento.');
+    }
+
+    const translationsPayload = SUPPORTED_LANGUAGES.map((language) => ({
+      event_type_id: inserted.id,
+      language,
+      label: value.labels[language],
+    }));
+
+    if (translationsPayload.length > 0) {
+      const { error: translationError } = await supabase
+        .from('event_type_translations')
+        .upsert(translationsPayload, { onConflict: 'event_type_id,language' });
+
+      if (translationError) {
+        throw toHttpError(translationError, 'No se pudieron guardar las traducciones del tipo de evento.');
+      }
+    }
+
+    const eventTypeRow = await fetchEventTypeRowById(inserted.id);
+    if (!eventTypeRow) {
+      return res.status(500).json({ error: 'No se pudo recuperar el tipo de evento recién creado.' });
+    }
+
+    const eventType = mapEventTypeRow(eventTypeRow);
+
+    return res.status(201).json({ eventType });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateEventType = async (req, res, next) => {
+  try {
+    const { value: params, error: paramsError } = eventTypeIdParamSchema.validate(req.params, { abortEarly: false });
+    if (paramsError) {
+      paramsError.status = 400;
+      throw paramsError;
+    }
+
+    const { value, error } = updateEventTypeSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('event_types')
+      .select('id, code')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw toHttpError(fetchError, 'No se pudo obtener el tipo de evento.');
+    }
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tipo de evento no encontrado.' });
+    }
+
+    if (value.code && value.code !== existing.code) {
+      const { data: duplicate, error: duplicateError } = await supabase
+        .from('event_types')
+        .select('id')
+        .eq('code', value.code)
+        .neq('id', params.id)
+        .maybeSingle();
+
+      if (duplicateError) {
+        throw toHttpError(duplicateError, 'No se pudo validar el código del tipo de evento.');
+      }
+
+      if (duplicate) {
+        return res.status(409).json({ error: 'Ya existe un tipo de evento con ese código.' });
+      }
+    }
+
+    const updatePayload = {};
+    if (value.code) updatePayload.code = value.code;
+    if (typeof value.plantDelta === 'number') updatePayload.plant_delta = value.plantDelta;
+    if (typeof value.removeDelta === 'number') updatePayload.remove_delta = value.removeDelta;
+    if (typeof value.position === 'number') updatePayload.position = value.position;
+
+    if (Object.keys(updatePayload).length > 0) {
+      const { error: updateError } = await supabase
+        .from('event_types')
+        .update(updatePayload)
+        .eq('id', params.id);
+
+      if (updateError) {
+        throw toHttpError(updateError, 'No se pudo actualizar el tipo de evento.');
+      }
+    }
+
+    if (value.labels) {
+      const normalizedLabels = Object.keys(value.labels).reduce((acc, key) => {
+        acc[key.toLowerCase()] = value.labels[key];
+        return acc;
+      }, {});
+
+      const translationsPayload = Object.entries(normalizedLabels).map(([language, label]) => ({
+        event_type_id: params.id,
+        language,
+        label,
+      }));
+
+      if (translationsPayload.length > 0) {
+        const { error: translationError } = await supabase
+          .from('event_type_translations')
+          .upsert(translationsPayload, { onConflict: 'event_type_id,language' });
+
+        if (translationError) {
+          throw toHttpError(translationError, 'No se pudieron actualizar las traducciones del tipo de evento.');
+        }
+      }
+    }
+
+    const eventTypeRow = await fetchEventTypeRowById(params.id);
+    if (!eventTypeRow) {
+      return res.status(404).json({ error: 'Tipo de evento no encontrado.' });
+    }
+
+    const eventType = mapEventTypeRow(eventTypeRow);
+
+    return res.json({ eventType });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.deleteEventType = async (req, res, next) => {
+  try {
+    const { value: params, error: paramsError } = eventTypeIdParamSchema.validate(req.params, { abortEarly: false });
+    if (paramsError) {
+      paramsError.status = 400;
+      throw paramsError;
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('event_types')
+      .select('id, code')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw toHttpError(fetchError, 'No se pudo obtener el tipo de evento.');
+    }
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tipo de evento no encontrado.' });
+    }
+
+    const { count, error: usageError } = await supabase
+      .from('plantas')
+      .select('id', { count: 'exact', head: true })
+      .eq('tipo', existing.code);
+
+    if (usageError) {
+      throw toHttpError(usageError, 'No se pudo comprobar el uso del tipo de evento.');
+    }
+
+    if ((count || 0) > 0) {
+      return res.status(400).json({ error: 'No se puede eliminar el tipo de evento porque está en uso.' });
+    }
+
+    const { error: deleteError } = await supabase.from('event_types').delete().eq('id', params.id);
+
+    if (deleteError) {
+      throw toHttpError(deleteError, 'No se pudo eliminar el tipo de evento.');
+    }
+
+    return res.status(204).send();
   } catch (err) {
     return next(err);
   }

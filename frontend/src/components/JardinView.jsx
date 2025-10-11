@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useEventTypes } from '../context/EventTypeContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 
 const moodStyles = [
@@ -14,22 +15,17 @@ const categorySuggestionsMap = {
   es: ['Trabajo', 'Relaciones', 'Autocuidado', 'Salud', 'Aprendizaje', 'Otro'],
   en: ['Work', 'Relationships', 'Self-care', 'Health', 'Learning', 'Other'],
   fr: ['Travail', 'Relations', 'Auto-soin', 'Santé', 'Apprentissage', 'Autre'],
+  ar: ['العمل', 'العلاقات', 'العناية الذاتية', 'الصحة', 'التعلم', 'أخرى'],
 };
 
 const getMood = (health) => moodStyles.find((mood) => health <= mood.limit) || moodStyles[2];
 
-const buildEmptyForm = (defaultCategory = '') => ({
+const buildEmptyForm = (defaultCategory = '', defaultType = '') => ({
   nombre: '',
   categoria: defaultCategory,
-  tipo: 'positivo',
+  tipo: defaultType,
   descripcion: '',
 });
-
-const getEventTypeLabel = (type, t) => {
-  if (type === 'positivo') return t('gardenTypePositive');
-  if (type === 'negativo') return t('gardenTypeNegative');
-  return t('gardenTypeNeutral');
-};
 
 const JardinView = () => {
   const {
@@ -45,7 +41,9 @@ const JardinView = () => {
   } = useAuth();
   const { t, language, locale } = useLanguage();
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState(() => buildEmptyForm(categorySuggestionsMap[language]?.[0] || ''));
+  const [form, setForm] = useState(() =>
+    buildEmptyForm(categorySuggestionsMap[language]?.[0] || '', '')
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [editingPlant, setEditingPlant] = useState(null);
@@ -56,6 +54,11 @@ const JardinView = () => {
   const [transferFeedback, setTransferFeedback] = useState(null);
   const [transferAction, setTransferAction] = useState(null);
   const gardenRef = useRef(null);
+
+  const { eventTypes, loading: eventTypesLoading, error: eventTypesError, getLabelForType, getEventTypeByCode } =
+    useEventTypes();
+
+  const defaultEventType = useMemo(() => eventTypes[0]?.code || '', [eventTypes]);
 
   const categorySuggestions = useMemo(
     () => categorySuggestionsMap[language] || categorySuggestionsMap.es,
@@ -68,6 +71,16 @@ const JardinView = () => {
       categoria: prev.categoria || categorySuggestions[0] || '',
     }));
   }, [categorySuggestions]);
+
+  useEffect(() => {
+    setForm((prev) => {
+      const hasCurrentType = eventTypes.some((eventType) => eventType.code === prev.tipo);
+      return {
+        ...prev,
+        tipo: hasCurrentType ? prev.tipo : defaultEventType,
+      };
+    });
+  }, [defaultEventType, eventTypes]);
 
   const health = garden?.estado_salud ?? 50;
   const accessoryList = Array.isArray(garden?.accesorios) ? garden.accesorios : [];
@@ -131,8 +144,14 @@ const JardinView = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
+
+    if (!form.tipo) {
+      setError(t('gardenNoEventTypesConfigured'));
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const { data } = await api.post('/jardin/planta', form, { headers: authHeaders });
       setGarden((prev) => ({
@@ -140,7 +159,7 @@ const JardinView = () => {
         ...data.jardin,
         plantas: [data.plant, ...((prev && prev.plantas) || [])],
       }));
-      setForm(buildEmptyForm(categorySuggestions[0] || ''));
+      setForm(buildEmptyForm(categorySuggestions[0] || '', defaultEventType));
       setFormOpen(false);
     } catch (err) {
       setError(err.response?.data?.error || t('formErrorRegisterPlant'));
@@ -264,7 +283,15 @@ const JardinView = () => {
         </div>
         <div className="relative z-0 mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {garden.plantas?.map((plant) => {
-            const typeLabel = getEventTypeLabel(plant.tipo, t);
+            const typeLabel = getLabelForType(plant.tipo);
+            const typeInfo = getEventTypeByCode(plant.tipo);
+            const badgeClass = typeInfo
+              ? typeInfo.plantDelta > 0
+                ? 'bg-emerald-500'
+                : typeInfo.plantDelta < 0
+                ? 'bg-rose-500'
+                : 'bg-slate-500'
+              : 'bg-slate-500';
             return (
               <article key={plant.id} className="rounded-2xl bg-white/80 p-4 shadow">
                 <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
@@ -272,13 +299,7 @@ const JardinView = () => {
                   {plant.categoria || t('gardenNoCategory')}
                 </p>
                 <span
-                  className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${
-                    plant.tipo === 'positivo'
-                      ? 'bg-emerald-500'
-                      : plant.tipo === 'negativo'
-                      ? 'bg-rose-500'
-                      : 'bg-slate-500'
-                  }`}
+                  className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${badgeClass}`}
                 >
                   {typeLabel}
                 </span>
@@ -465,11 +486,20 @@ const JardinView = () => {
                   value={form.tipo}
                   onChange={handleChange}
                   className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                  disabled={eventTypesLoading || eventTypes.length === 0}
                 >
-                  <option value="positivo">{t('gardenTypePositive')}</option>
-                  <option value="negativo">{t('gardenTypeNegative')}</option>
-                  <option value="neutro">{t('gardenTypeNeutral')}</option>
+                  {eventTypes.map((eventType) => (
+                    <option key={eventType.code} value={eventType.code}>
+                      {eventType.label}
+                    </option>
+                  ))}
                 </select>
+                {eventTypesError && (
+                  <p className="mt-1 text-sm text-red-600">{eventTypesError}</p>
+                )}
+                {!eventTypesLoading && eventTypes.length === 0 && !eventTypesError && (
+                  <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventTypesConfigured')}</p>
+                )}
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="descripcion">
@@ -496,7 +526,7 @@ const JardinView = () => {
                 <button
                   type="submit"
                   className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-                  disabled={submitting}
+                  disabled={submitting || eventTypes.length === 0}
                 >
                   {submitting ? t('gardenFormSaving') : t('gardenFormSave')}
                 </button>
