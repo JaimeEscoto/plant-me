@@ -45,22 +45,46 @@ const SeedHistoryView = () => {
     [t]
   );
 
-  const resolvedHistory = useMemo(
-    () =>
-      history.map((transfer) => {
-        const isSender = transfer.remitente_id === user?.id;
-        const counterpart = isSender
-          ? transfer.destinatario?.nombre_usuario
-          : transfer.remitente?.nombre_usuario;
-        const counterpartName = counterpart || t('communityUnknownUser');
-        return {
-          ...transfer,
-          isSender,
-          counterpartName,
-        };
-      }),
-    [history, t, user?.id]
-  );
+  const resolvedHistory = useMemo(() => {
+    const storeName = t('economySeedHistoryStoreName');
+
+    return history.map((transfer) => {
+      const isStoreEvent = transfer.remitente_id && transfer.destinatario_id
+        ? transfer.remitente_id === transfer.destinatario_id
+        : false;
+
+      let isSender = transfer.remitente_id === user?.id;
+      let counterpartName = isSender
+        ? transfer.destinatario?.nombre_usuario
+        : transfer.remitente?.nombre_usuario;
+      let message = transfer.mensaje;
+
+      if (isStoreEvent) {
+        counterpartName = storeName;
+
+        if (typeof transfer.mensaje === 'string') {
+          if (transfer.mensaje.startsWith('[compra]')) {
+            isSender = true;
+            message = transfer.mensaje.replace('[compra]', '').trim();
+          } else if (transfer.mensaje.startsWith('[venta]')) {
+            isSender = false;
+            message = transfer.mensaje.replace('[venta]', '').trim();
+          }
+        }
+      }
+
+      if (!counterpartName) {
+        counterpartName = t('communityUnknownUser');
+      }
+
+      return {
+        ...transfer,
+        isSender,
+        counterpartName,
+        mensaje: message,
+      };
+    });
+  }, [history, t, user?.id]);
 
   const getStatusLabel = useCallback(
     (status) => statusLabels[status] || t('economySeedHistoryStatusUnknown'),

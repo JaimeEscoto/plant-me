@@ -187,6 +187,32 @@ const buildAccessoryList = (inventoryMap) =>
     cantidad: inventoryMap.get(item.id) || 0,
   }));
 
+const recordSeedMovement = async ({ userId, amount, type, message }) => {
+  if (!userId || !Number.isFinite(amount) || amount <= 0) {
+    return;
+  }
+
+  const normalizedType = type === 'venta' ? 'venta' : 'compra';
+  const prefix = normalizedType === 'venta' ? '[venta]' : '[compra]';
+  const composedMessage = `${prefix} ${message}`.trim();
+
+  try {
+    const { error } = await supabase.from('semillas_transferencias').insert({
+      remitente_id: userId,
+      destinatario_id: userId,
+      cantidad: Math.abs(Math.trunc(amount)),
+      estado: 'aceptado',
+      mensaje: composedMessage,
+    });
+
+    if (error) {
+      console.error('No se pudo registrar el movimiento de semillas en el historial.', error);
+    }
+  } catch (loggingError) {
+    console.error('Error inesperado al registrar el movimiento de semillas.', loggingError);
+  }
+};
+
 const updateInventoryQuantity = async (userId, accessoryId, nextQuantity) => {
   const { data: existingRow, error: fetchError } = await supabase
     .from('usuario_accesorios')
@@ -352,6 +378,13 @@ exports.purchaseAccessory = async (req, res, next) => {
 
     const { event, garden } = await createAccessoryEvent(req.user.id, accessory);
 
+    await recordSeedMovement({
+      userId: req.user.id,
+      amount: accessory.precio,
+      type: 'compra',
+      message: `Compra de accesorio: ${accessory.nombre}`,
+    });
+
     const refreshedInventory = await fetchUserEconomy(req.user.id);
 
     return res.status(201).json({
@@ -406,6 +439,13 @@ exports.sellAccessory = async (req, res, next) => {
     }
 
     const refreshedInventory = await fetchUserEconomy(req.user.id);
+
+    await recordSeedMovement({
+      userId: req.user.id,
+      amount: saleValue,
+      type: 'venta',
+      message: `Venta de accesorio: ${accessory.nombre}${quantity > 1 ? ` (x${quantity})` : ''}`,
+    });
 
     return res.json({
       accesorio: accessory,
