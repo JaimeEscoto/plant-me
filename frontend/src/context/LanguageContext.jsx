@@ -209,6 +209,7 @@ const translations = {
     economySeedTransferRecipientPlaceholder: 'Ej. test',
     economySeedTransferAmount: 'Cantidad de semillas',
     economySeedTransferMessage: 'Mensaje (opcional)',
+    economySeedTransferMessagePlaceholder: 'Comparte un mensaje de apoyo (opcional)',
     economySeedTransferSubmit: 'Enviar regalo',
     economyPendingGiftsTitle: 'Regalos pendientes',
     economyPendingSeedsLabel: 'Semillas recibidas',
@@ -240,6 +241,36 @@ const translations = {
     economyAcceptTransferSuccess: 'Regalo aceptado correctamente.',
     economyRejectTransferSuccess: 'Regalo gestionado correctamente.',
     economyTransferUpdateError: 'No se pudo actualizar el estado del regalo.',
+    economyAccessory_sombrero_floral_name: 'Sombrero floral',
+    economyAccessory_sombrero_floral_description:
+      'Un sombrero tejido con pétalos brillantes que celebra los logros diarios.',
+    economyAccessory_guirnalda_luces_name: 'Guirnalda de luciérnagas',
+    economyAccessory_guirnalda_luces_description:
+      'Luce destellos mágicos alrededor de tu planta durante la noche.',
+    economyAccessory_maceta_arcoiris_name: 'Maceta arcoíris',
+    economyAccessory_maceta_arcoiris_description:
+      'Una maceta multicolor que vibra con cada emoción positiva.',
+    economyAccessory_duende_guardian_name: 'Duende guardián',
+    economyAccessory_duende_guardian_description:
+      'Un pequeño guardián que protege tus emociones con una sonrisa.',
+    economyAccessory_piedras_equilibrio_name: 'Piedras de equilibrio',
+    economyAccessory_piedras_equilibrio_description:
+      'Piedras pulidas que ayudan a estabilizar la energía de la planta.',
+    economyAccessory_campanas_viento_name: 'Campanas de viento suave',
+    economyAccessory_campanas_viento_description:
+      'Campanas que suenan cuando tu jardín alcanza armonía.',
+    economyAccessory_rastro_estrellas_name: 'Rastro de estrellas',
+    economyAccessory_rastro_estrellas_description:
+      'Un polvo estelar que deja destellos al mover la planta.',
+    economyAccessory_mariposas_amigas_name: 'Mariposas amigas',
+    economyAccessory_mariposas_amigas_description:
+      'Mariposas que revolotean alrededor recordando pequeños logros.',
+    economyAccessory_gotas_aurora_name: 'Gotas de aurora',
+    economyAccessory_gotas_aurora_description:
+      'Pequeñas luces que cuelgan como gotas de rocío multicolor.',
+    economyAccessory_cojin_terrenal_name: 'Cojín terrenal',
+    economyAccessory_cojin_terrenal_description:
+      'Un mullido cojín que abraza las raíces de la planta.',
   },
   en: {
     headerTitle: 'My Mental Garden',
@@ -394,6 +425,7 @@ const translations = {
     economySeedTransferRecipientPlaceholder: 'e.g. test',
     economySeedTransferAmount: 'Amount of seeds',
     economySeedTransferMessage: 'Message (optional)',
+    economySeedTransferMessagePlaceholder: 'Share a note of support (optional)',
     economySeedTransferSubmit: 'Send gift',
     economyPendingGiftsTitle: 'Pending gifts',
     economyPendingSeedsLabel: 'Seeds received',
@@ -424,6 +456,36 @@ const translations = {
     economyAcceptTransferSuccess: 'Gift accepted successfully.',
     economyRejectTransferSuccess: 'Gift handled successfully.',
     economyTransferUpdateError: 'We could not update the gift status.',
+    economyAccessory_sombrero_floral_name: 'Floral hat',
+    economyAccessory_sombrero_floral_description:
+      'A hat woven with shimmering petals that celebrates daily achievements.',
+    economyAccessory_guirnalda_luces_name: 'Firefly garland',
+    economyAccessory_guirnalda_luces_description:
+      'Sprinkles magical glimmers around your plant at night.',
+    economyAccessory_maceta_arcoiris_name: 'Rainbow pot',
+    economyAccessory_maceta_arcoiris_description:
+      'A multicolored pot that hums with every positive emotion.',
+    economyAccessory_duende_guardian_name: 'Guardian sprite',
+    economyAccessory_duende_guardian_description:
+      'A tiny guardian who protects your emotions with a smile.',
+    economyAccessory_piedras_equilibrio_name: 'Balance stones',
+    economyAccessory_piedras_equilibrio_description:
+      'Polished stones that steady the plant’s energy.',
+    economyAccessory_campanas_viento_name: 'Soft wind chimes',
+    economyAccessory_campanas_viento_description:
+      'Chimes that ring whenever your garden reaches harmony.',
+    economyAccessory_rastro_estrellas_name: 'Star trail',
+    economyAccessory_rastro_estrellas_description:
+      'Stardust that leaves sparkles as the plant sways.',
+    economyAccessory_mariposas_amigas_name: 'Friendly butterflies',
+    economyAccessory_mariposas_amigas_description:
+      'Butterflies fluttering around to celebrate small wins.',
+    economyAccessory_gotas_aurora_name: 'Aurora drops',
+    economyAccessory_gotas_aurora_description:
+      'Little lights hanging like multicolored dew drops.',
+    economyAccessory_cojin_terrenal_name: 'Earthy cushion',
+    economyAccessory_cojin_terrenal_description:
+      'A plush cushion hugging the plant’s roots.',
   },
   fr: {
     headerTitle: 'Mon Jardin Mental',
@@ -578,6 +640,7 @@ const translations = {
     economySeedTransferRecipientPlaceholder: 'ex. test',
     economySeedTransferAmount: 'Quantité de graines',
     economySeedTransferMessage: 'Message (facultatif)',
+    economySeedTransferMessagePlaceholder: 'Partage un mot de soutien (facultatif)',
     economySeedTransferSubmit: 'Envoyer le cadeau',
     economyPendingGiftsTitle: 'Cadeaux en attente',
     economyPendingSeedsLabel: 'Graines reçues',
@@ -609,6 +672,36 @@ const translations = {
     economyAcceptTransferSuccess: 'Cadeau accepté avec succès.',
     economyRejectTransferSuccess: 'Cadeau géré avec succès.',
     economyTransferUpdateError: 'Impossible de mettre à jour le statut du cadeau.',
+    economyAccessory_sombrero_floral_name: 'Chapeau floral',
+    economyAccessory_sombrero_floral_description:
+      'Un chapeau tissé de pétales scintillants qui célèbre les réussites quotidiennes.',
+    economyAccessory_guirnalda_luces_name: 'Guirlande de lucioles',
+    economyAccessory_guirnalda_luces_description:
+      'Fait briller des lueurs magiques autour de ta plante pendant la nuit.',
+    economyAccessory_maceta_arcoiris_name: 'Pot arc-en-ciel',
+    economyAccessory_maceta_arcoiris_description:
+      'Un pot multicolore qui vibre à chaque émotion positive.',
+    economyAccessory_duende_guardian_name: 'Lutin gardien',
+    economyAccessory_duende_guardian_description:
+      'Un petit gardien qui protège tes émotions avec le sourire.',
+    economyAccessory_piedras_equilibrio_name: 'Pierres d’équilibre',
+    economyAccessory_piedras_equilibrio_description:
+      'Des pierres polies qui stabilisent l’énergie de la plante.',
+    economyAccessory_campanas_viento_name: 'Carillons de vent doux',
+    economyAccessory_campanas_viento_description:
+      'Des carillons qui tintent lorsque ton jardin atteint l’harmonie.',
+    economyAccessory_rastro_estrellas_name: 'Trace d’étoiles',
+    economyAccessory_rastro_estrellas_description:
+      'Une poussière stellaire qui laisse des scintillements quand la plante bouge.',
+    economyAccessory_mariposas_amigas_name: 'Papillons amis',
+    economyAccessory_mariposas_amigas_description:
+      'Des papillons qui virevoltent pour rappeler les petites victoires.',
+    economyAccessory_gotas_aurora_name: 'Gouttes d’aurore',
+    economyAccessory_gotas_aurora_description:
+      'De petites lumières suspendues comme des gouttes de rosée multicolores.',
+    economyAccessory_cojin_terrenal_name: 'Coussin terrestre',
+    economyAccessory_cojin_terrenal_description:
+      'Un coussin moelleux qui enlace les racines de la plante.',
   },
   ar: {
     headerTitle: 'حديقتي الذهنية',
@@ -763,6 +856,7 @@ const translations = {
     economySeedTransferRecipientPlaceholder: 'مثال: test',
     economySeedTransferAmount: 'عدد البذور',
     economySeedTransferMessage: 'رسالة (اختياري)',
+    economySeedTransferMessagePlaceholder: 'اكتب رسالة دعم (اختياري)',
     economySeedTransferSubmit: 'إرسال الهدية',
     economyPendingGiftsTitle: 'هدايا بانتظار القبول',
     economyPendingSeedsLabel: 'بذور مستلمة',
@@ -793,6 +887,36 @@ const translations = {
     economyAcceptTransferSuccess: 'تم قبول الهدية بنجاح.',
     economyRejectTransferSuccess: 'تم التعامل مع الهدية بنجاح.',
     economyTransferUpdateError: 'تعذر تحديث حالة الهدية.',
+    economyAccessory_sombrero_floral_name: 'قبعة مزدانة بالزهور',
+    economyAccessory_sombrero_floral_description:
+      'قبعة منسوجة ببتلات متلألئة تحتفي بإنجازاتك اليومية.',
+    economyAccessory_guirnalda_luces_name: 'إكليل اليراعات',
+    economyAccessory_guirnalda_luces_description:
+      'ينثر ومضات سحرية حول نبتتك في الليل.',
+    economyAccessory_maceta_arcoiris_name: 'وعاء قوس قزح',
+    economyAccessory_maceta_arcoiris_description:
+      'وعاء متعدد الألوان يهتز مع كل مشاعر إيجابية.',
+    economyAccessory_duende_guardian_name: 'عفريت حارس',
+    economyAccessory_duende_guardian_description:
+      'حارس صغير يحمي مشاعرك بابتسامة.',
+    economyAccessory_piedras_equilibrio_name: 'أحجار التوازن',
+    economyAccessory_piedras_equilibrio_description:
+      'أحجار مصقولة تساعد على استقرار طاقة النبتة.',
+    economyAccessory_campanas_viento_name: 'أجراس نسيم لطيف',
+    economyAccessory_campanas_viento_description:
+      'أجراس ترنّ حين تصل حديقتك إلى حالة انسجام.',
+    economyAccessory_rastro_estrellas_name: 'أثر النجوم',
+    economyAccessory_rastro_estrellas_description:
+      'غبار نجمي يترك بريقًا كلما تحركت النبتة.',
+    economyAccessory_mariposas_amigas_name: 'فراشات صديقة',
+    economyAccessory_mariposas_amigas_description:
+      'فراشات تحوم حولك لتذكيرك بالإنجازات الصغيرة.',
+    economyAccessory_gotas_aurora_name: 'قطرات الشفق',
+    economyAccessory_gotas_aurora_description:
+      'أضواء صغيرة تتدلّى مثل قطرات ندى متعددة الألوان.',
+    economyAccessory_cojin_terrenal_name: 'وسادة أرضية',
+    economyAccessory_cojin_terrenal_description:
+      'وسادة ناعمة تعانق جذور النبتة.',
   },
 };
 
