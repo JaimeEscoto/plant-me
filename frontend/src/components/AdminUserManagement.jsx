@@ -79,9 +79,15 @@ const AdminUserManagement = () => {
       return;
     }
 
+    const parsedUserId = Number.parseInt(selectedUserId, 10);
+    if (!Number.isFinite(parsedUserId)) {
+      setFeedback({ type: 'error', message: t('adminGrantError') });
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await grantSeeds(selectedUserId, {
+      await grantSeeds(parsedUserId, {
         cantidad: parsedAmount,
         mensaje: message || undefined,
       });
