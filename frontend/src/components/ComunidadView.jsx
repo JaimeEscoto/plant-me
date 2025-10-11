@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import PlantHealthIllustration from './PlantHealthIllustration';
 
 const ComunidadView = () => {
   const {
@@ -412,16 +413,26 @@ const ComunidadView = () => {
             )}
             {profile.jardin ? (
               <div className="rounded-2xl bg-gradient-to-br from-emerald-100 via-sky-100 to-white p-4">
-                <p className="text-lg font-semibold text-gardenGreen">
-                  {t('communityGardenHealth', { health: profile.jardin.estado_salud })}
-                </p>
-                <p className="text-sm text-slate-600">
-                  {t('communityLastUpdate')}{' '}
-                  {new Date(profile.jardin.ultima_modificacion).toLocaleString(locale, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                </p>
+                <div className="flex flex-col-reverse items-center gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-center sm:text-left">
+                    <p className="text-lg font-semibold text-gardenGreen">
+                      {t('communityGardenHealth', { health: profile.jardin.estado_salud })}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {t('communityLastUpdate')}{' '}
+                      {new Date(profile.jardin.ultima_modificacion).toLocaleString(locale, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  </div>
+                  <PlantHealthIllustration
+                    health={profile.jardin.estado_salud}
+                    dimension={196}
+                    className="w-full max-w-[10rem]"
+                    showStageLabel
+                  />
+                </div>
               </div>
             ) : (
               <p className="text-sm text-slate-500">{t('communityNoGarden')}</p>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import PlantHealthIllustration from './PlantHealthIllustration';
 
 const moodStyles = [
   { limit: 33, bg: 'from-red-100 via-orange-100 to-yellow-100', messageKey: 'gardenMoodNeedsCare' },
@@ -152,18 +153,25 @@ const JardinView = () => {
     <div className="space-y-6">
       <section className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${mood.bg} p-8 shadow-lg`}>
         <div ref={gardenRef} className="absolute inset-0 opacity-30" aria-hidden />
-        <div className="relative z-10">
-          <h2 className="text-2xl font-bold text-gardenGreen">{t('gardenHealth', { health })}</h2>
-          <p className="mt-2 text-lg text-slate-700">{t(mood.messageKey)}</p>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('gardenMoodDescription')}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={() => setFormOpen(true)}
-              className="rounded-full bg-gardenGreen px-6 py-2 font-semibold text-white shadow hover:bg-emerald-600"
-            >
-              {t('gardenRecordEvent')}
-            </button>
+        <div className="relative z-10 flex flex-col-reverse items-center gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-center lg:text-left">
+            <h2 className="text-2xl font-bold text-gardenGreen">{t('gardenHealth', { health })}</h2>
+            <p className="mt-2 text-lg text-slate-700">{t(mood.messageKey)}</p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('gardenMoodDescription')}</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3 lg:justify-start">
+              <button
+                onClick={() => setFormOpen(true)}
+                className="rounded-full bg-gardenGreen px-6 py-2 font-semibold text-white shadow hover:bg-emerald-600"
+              >
+                {t('gardenRecordEvent')}
+              </button>
+            </div>
           </div>
+          <PlantHealthIllustration
+            health={health}
+            dimension={220}
+            className="w-full max-w-xs"
+          />
         </div>
         <div className="relative z-0 mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {garden.plantas?.map((plant) => {
