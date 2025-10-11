@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const supabase = require('../lib/supabaseClient');
 const { toHttpError } = require('../utils/supabase');
+const { buildAccessoryList } = require('../utils/accessories');
 const { registerSchema, loginSchema } = require('../validations/authValidation');
 
 const signToken = (userId) =>
@@ -56,6 +57,20 @@ exports.register = async (req, res, next) => {
       throw toHttpError(gardenError, 'No se pudo crear el jardín en Supabase.');
     }
 
+    const { data: accessoryRows, error: accessoryError } = await supabase
+      .from('usuario_accesorios')
+      .select('accesorio_id, cantidad')
+      .eq('usuario_id', user.id);
+
+    if (accessoryError) {
+      throw toHttpError(accessoryError, 'No se pudieron obtener los accesorios del jardín.');
+    }
+
+    const gardenWithAccessories = {
+      ...garden,
+      accesorios: buildAccessoryList(accessoryRows || []),
+    };
+
     const token = signToken(user.id);
 
     return res.status(201).json({
@@ -67,7 +82,7 @@ exports.register = async (req, res, next) => {
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
         rol: user.rol || 'usuario',
-        jardin: garden,
+        jardin: gardenWithAccessories,
       },
     });
   } catch (err) {
@@ -113,6 +128,22 @@ exports.login = async (req, res, next) => {
       throw toHttpError(gardenError, 'No se pudo obtener el jardín del usuario.');
     }
 
+    const { data: accessoryRows, error: accessoryError } = await supabase
+      .from('usuario_accesorios')
+      .select('accesorio_id, cantidad')
+      .eq('usuario_id', user.id);
+
+    if (accessoryError) {
+      throw toHttpError(accessoryError, 'No se pudieron obtener los accesorios del jardín.');
+    }
+
+    const gardenWithAccessories = garden
+      ? {
+          ...garden,
+          accesorios: buildAccessoryList(accessoryRows || []),
+        }
+      : null;
+
     return res.status(200).json({
       token,
       user: {
@@ -122,7 +153,7 @@ exports.login = async (req, res, next) => {
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
         rol: user.rol || 'usuario',
-        jardin: garden,
+        jardin: gardenWithAccessories,
       },
     });
   } catch (err) {

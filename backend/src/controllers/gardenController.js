@@ -1,5 +1,6 @@
 const supabase = require('../lib/supabaseClient');
 const { toHttpError } = require('../utils/supabase');
+const { buildAccessoryList } = require('../utils/accessories');
 const {
   createPlantSchema,
   updatePlantSchema,
@@ -21,15 +22,25 @@ const adjustGardenHealth = (currentHealth, tipo, manualDelta) => {
 
 exports.getGarden = async (req, res, next) => {
   try {
-    const { data: garden, error } = await supabase
-      .from('jardines')
-      .select('id, usuario_id, estado_salud, ultima_modificacion, plantas:plantas(*)')
-      .eq('usuario_id', req.user.id)
-      .order('fecha_plantado', { referencedTable: 'plantas', ascending: false })
-      .maybeSingle();
+    const [{ data: garden, error }, { data: accessoryRows, error: accessoryError }] = await Promise.all([
+      supabase
+        .from('jardines')
+        .select('id, usuario_id, estado_salud, ultima_modificacion, plantas:plantas(*)')
+        .eq('usuario_id', req.user.id)
+        .order('fecha_plantado', { referencedTable: 'plantas', ascending: false })
+        .maybeSingle(),
+      supabase
+        .from('usuario_accesorios')
+        .select('accesorio_id, cantidad')
+        .eq('usuario_id', req.user.id),
+    ]);
 
     if (error) {
       throw toHttpError(error, 'No se pudo obtener la información del jardín.');
+    }
+
+    if (accessoryError) {
+      throw toHttpError(accessoryError, 'No se pudieron obtener los accesorios del jardín.');
     }
 
     if (!garden) {
@@ -43,6 +54,7 @@ exports.getGarden = async (req, res, next) => {
             (a, b) => new Date(b.fecha_plantado).getTime() - new Date(a.fecha_plantado).getTime()
           )
         : [],
+      accesorios: buildAccessoryList(accessoryRows || []),
     };
 
     return res.json(sortedGarden);
@@ -128,7 +140,21 @@ exports.createPlant = async (req, res, next) => {
       throw toHttpError(updateUserError, 'No se pudo actualizar el saldo de semillas.');
     }
 
-    return res.status(201).json({ plant, jardin: updatedGarden, semillas: updatedUser.semillas });
+    const { data: accessoryRows, error: accessoryError } = await supabase
+      .from('usuario_accesorios')
+      .select('accesorio_id, cantidad')
+      .eq('usuario_id', req.user.id);
+
+    if (accessoryError) {
+      throw toHttpError(accessoryError, 'No se pudieron obtener los accesorios del jardín.');
+    }
+
+    const enrichedGarden = {
+      ...updatedGarden,
+      accesorios: buildAccessoryList(accessoryRows || []),
+    };
+
+    return res.status(201).json({ plant, jardin: enrichedGarden, semillas: updatedUser.semillas });
   } catch (err) {
     return next(err);
   }

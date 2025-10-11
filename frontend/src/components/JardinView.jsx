@@ -63,6 +63,10 @@ const JardinView = () => {
   const health = garden?.estado_salud ?? 50;
   const accessoryList = Array.isArray(garden?.accesorios) ? garden.accesorios : [];
   const mood = useMemo(() => getMood(health), [health]);
+  const ownedAccessories = useMemo(
+    () => accessoryList.filter((item) => Number(item?.cantidad) > 0),
+    [accessoryList]
+  );
 
   useEffect(() => {
     if (!garden) {
@@ -231,6 +235,47 @@ const JardinView = () => {
             <p className="text-sm text-slate-600">{t('gardenNoEvents')}</p>
           )}
         </div>
+      </section>
+
+      <section className="rounded-3xl bg-white/90 p-6 shadow-lg">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-gardenGreen">
+              {t('gardenAccessoriesTitle')}
+            </h3>
+            <p className="text-sm text-slate-600">{t('gardenAccessoriesDescription')}</p>
+          </div>
+        </div>
+        {ownedAccessories.length > 0 ? (
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ownedAccessories.map((accessory) => (
+              <li
+                key={accessory.id}
+                className="flex h-full flex-col justify-between gap-3 rounded-2xl bg-slate-50/80 p-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl" aria-hidden>
+                    {accessory.icono}
+                  </span>
+                  <div className="flex-1">
+                    <h4 className="text-base font-semibold text-gardenSoil">
+                      {accessory.nombre}
+                    </h4>
+                    {accessory.descripcion && (
+                      <p className="mt-1 text-sm text-slate-600">{accessory.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+                <span className="inline-flex w-fit items-center gap-2 rounded-full bg-gardenGreen/10 px-3 py-1 text-xs font-semibold text-gardenGreen">
+                  <span aria-hidden>🔸</span>
+                  {t('gardenAccessoryQuantity', { count: accessory.cantidad })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-slate-600">{t('gardenAccessoriesEmpty')}</p>
+        )}
       </section>
 
       {formOpen && (
