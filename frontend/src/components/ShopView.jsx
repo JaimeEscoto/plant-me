@@ -16,12 +16,10 @@ const ShopView = () => {
     purchaseAccessory,
     sellAccessory,
     transferAccessory,
-    acceptAccessoryTransfer,
-    rejectAccessoryTransfer,
     setGarden,
     user,
   } = useAuth();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
 
   const [economy, setEconomy] = useState(emptyEconomy);
   const [economyLoading, setEconomyLoading] = useState(false);
@@ -60,14 +58,6 @@ const ShopView = () => {
     loadEconomy();
   }, [loadEconomy]);
 
-  const formatDateTime = useCallback(
-    (value) =>
-      value
-        ? new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
-        : '',
-    [locale]
-  );
-
   const accessoryList = useMemo(
     () => (Array.isArray(economy.accesorios) ? economy.accesorios : []),
     [economy.accesorios]
@@ -96,11 +86,6 @@ const ShopView = () => {
         ? economy.transferencias.accesorios
         : [],
     [economy.transferencias?.accesorios]
-  );
-
-  const incomingAccessoryTransfers = useMemo(
-    () => accessoryTransfers.filter((transfer) => transfer.destinatario_id === user?.id),
-    [accessoryTransfers, user?.id]
   );
 
   const outgoingAccessoryTransfers = useMemo(
@@ -203,36 +188,6 @@ const ShopView = () => {
       setShopFeedback(t('economyAccessoryTransferSuccess'));
     } catch (err) {
       setEconomyError(err.response?.data?.error || t('economyAccessoryTransferError'));
-    } finally {
-      setShopAction(null);
-      await loadEconomy();
-    }
-  };
-
-  const handleAcceptAccessoryTransfer = async (transferId) => {
-    setShopAction(`accept-accessory-${transferId}`);
-    setEconomyError(null);
-    setShopFeedback(null);
-    try {
-      await acceptAccessoryTransfer(transferId);
-      setShopFeedback(t('economyAcceptTransferSuccess'));
-    } catch (err) {
-      setEconomyError(err.response?.data?.error || t('economyTransferUpdateError'));
-    } finally {
-      setShopAction(null);
-      await loadEconomy();
-    }
-  };
-
-  const handleRejectAccessoryTransfer = async (transferId) => {
-    setShopAction(`reject-accessory-${transferId}`);
-    setEconomyError(null);
-    setShopFeedback(null);
-    try {
-      await rejectAccessoryTransfer(transferId);
-      setShopFeedback(t('economyRejectTransferSuccess'));
-    } catch (err) {
-      setEconomyError(err.response?.data?.error || t('economyTransferUpdateError'));
     } finally {
       setShopAction(null);
       await loadEconomy();
@@ -357,48 +312,7 @@ const ShopView = () => {
 
         <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
           <h4 className="text-lg font-semibold text-gardenSoil">{t('economyAccessoryTransfersTitle')}</h4>
-          <p className="mt-1 text-sm text-slate-600">{t('economyAccessoryTransfersDescription')}</p>
-          <ul className="mt-4 space-y-3">
-            {incomingAccessoryTransfers.map((transfer) => {
-              const accessoryInfo = accessoryList.find((item) => item.id === transfer.accesorio_id);
-              return (
-                <li key={transfer.id} className="rounded-2xl bg-sky-50 p-3 shadow-sm">
-                  <p className="text-sm font-semibold text-sky-700">
-                    {t('economyAccessoryTransferFromLabel', {
-                      name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
-                      item: accessoryInfo?.nombre || transfer.accesorio_id,
-                      amount: transfer.cantidad,
-                    })}
-                  </p>
-                  <p className="mt-1 text-xs text-sky-700">{formatDateTime(transfer.fecha_creacion)}</p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptAccessoryTransfer(transfer.id)}
-                      disabled={shopAction === `accept-accessory-${transfer.id}`}
-                      className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-sky-600 disabled:bg-sky-200"
-                    >
-                      {shopAction === `accept-accessory-${transfer.id}`
-                        ? t('economyProcessing')
-                        : t('economyAcceptButton')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRejectAccessoryTransfer(transfer.id)}
-                      disabled={shopAction === `reject-accessory-${transfer.id}`}
-                      className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
-                    >
-                      {shopAction === `reject-accessory-${transfer.id}`
-                        ? t('economyProcessing')
-                        : t('economyRejectButton')}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          {outgoingAccessoryTransfers.length > 0 && (
+          {outgoingAccessoryTransfers.length > 0 ? (
             <div className="mt-4 space-y-2">
               <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {t('economyPendingAccessoriesOutgoingLabel')}
@@ -416,6 +330,8 @@ const ShopView = () => {
                 );
               })}
             </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-600">{t('economyNoPendingAccessories')}</p>
           )}
         </div>
       </section>

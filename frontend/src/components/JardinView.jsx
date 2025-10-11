@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -38,6 +38,10 @@ const JardinView = () => {
     api,
     authHeaders,
     setGarden,
+    getEconomyOverview,
+    acceptAccessoryTransfer,
+    rejectAccessoryTransfer,
+    user,
   } = useAuth();
   const { t, language, locale } = useLanguage();
   const [formOpen, setFormOpen] = useState(false);
@@ -46,6 +50,11 @@ const JardinView = () => {
   const [error, setError] = useState(null);
   const [editingPlant, setEditingPlant] = useState(null);
   const [editDescription, setEditDescription] = useState('');
+  const [incomingAccessoryTransfers, setIncomingAccessoryTransfers] = useState([]);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState(null);
+  const [transferFeedback, setTransferFeedback] = useState(null);
+  const [transferAction, setTransferAction] = useState(null);
   const gardenRef = useRef(null);
 
   const categorySuggestions = useMemo(
@@ -68,11 +77,42 @@ const JardinView = () => {
     [accessoryList]
   );
 
+  const formatDateTime = useCallback(
+    (value) =>
+      value
+        ? new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
+        : '',
+    [locale]
+  );
+
+  const loadAccessoryTransfers = useCallback(async () => {
+    if (!getEconomyOverview) return;
+    setTransferLoading(true);
+    setTransferError(null);
+    try {
+      const data = await getEconomyOverview();
+      const transfers = Array.isArray(data?.transferencias?.accesorios)
+        ? data.transferencias.accesorios
+        : [];
+      const incoming = transfers.filter((transfer) => transfer.destinatario_id === user?.id);
+      setIncomingAccessoryTransfers(incoming);
+    } catch (err) {
+      setTransferError(t('economyOverviewError'));
+      setIncomingAccessoryTransfers([]);
+    } finally {
+      setTransferLoading(false);
+    }
+  }, [getEconomyOverview, t, user?.id]);
+
   useEffect(() => {
     if (!garden) {
       fetchGarden();
     }
   }, [garden, fetchGarden]);
+
+  useEffect(() => {
+    loadAccessoryTransfers();
+  }, [loadAccessoryTransfers]);
 
   useEffect(() => {
     if (gardenRef.current) {
@@ -156,6 +196,42 @@ const JardinView = () => {
     }
   };
 
+  const handleAcceptAccessoryTransfer = async (transferId) => {
+    setTransferAction(`accept-${transferId}`);
+    setTransferError(null);
+    setTransferFeedback(null);
+    try {
+      const data = await acceptAccessoryTransfer(transferId);
+      if (Array.isArray(data?.accesorios)) {
+        setGarden((prev) => {
+          if (!prev) return prev;
+          return { ...prev, accesorios: data.accesorios };
+        });
+      }
+      setTransferFeedback(t('economyAcceptTransferSuccess'));
+    } catch (err) {
+      setTransferError(err.response?.data?.error || t('economyTransferUpdateError'));
+    } finally {
+      setTransferAction(null);
+      await loadAccessoryTransfers();
+    }
+  };
+
+  const handleRejectAccessoryTransfer = async (transferId) => {
+    setTransferAction(`reject-${transferId}`);
+    setTransferError(null);
+    setTransferFeedback(null);
+    try {
+      await rejectAccessoryTransfer(transferId);
+      setTransferFeedback(t('economyRejectTransferSuccess'));
+    } catch (err) {
+      setTransferError(err.response?.data?.error || t('economyTransferUpdateError'));
+    } finally {
+      setTransferAction(null);
+      await loadAccessoryTransfers();
+    }
+  };
+
 
   if (!garden) {
     return <p className="text-center text-lg text-slate-500">{t('gardenLoading')}</p>;
@@ -235,6 +311,68 @@ const JardinView = () => {
             <p className="text-sm text-slate-600">{t('gardenNoEvents')}</p>
           )}
         </div>
+      </section>
+
+      <section className="rounded-3xl bg-white/90 p-6 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xl font-semibold text-gardenGreen">
+            {t('economyAccessoryTransfersTitle')}
+          </h3>
+          {transferLoading && (
+            <span className="text-xs font-semibold text-slate-500">{t('economyLoading')}</span>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-slate-600">{t('economyAccessoryTransfersDescription')}</p>
+        {transferError && (
+          <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-600">{transferError}</p>
+        )}
+        {transferFeedback && !transferError && (
+          <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-600">
+            {transferFeedback}
+          </p>
+        )}
+        <ul className="mt-4 space-y-3">
+          {incomingAccessoryTransfers.map((transfer) => {
+            const accessoryInfo = accessoryList.find((item) => item.id === transfer.accesorio_id);
+            return (
+              <li key={transfer.id} className="rounded-2xl bg-sky-50 p-3 shadow-sm">
+                <p className="text-sm font-semibold text-sky-700">
+                  {t('economyAccessoryTransferFromLabel', {
+                    name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
+                    item: accessoryInfo?.nombre || transfer.accesorio_id,
+                    amount: transfer.cantidad,
+                  })}
+                </p>
+                <p className="mt-1 text-xs text-sky-700">{formatDateTime(transfer.fecha_creacion)}</p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptAccessoryTransfer(transfer.id)}
+                    disabled={transferAction === `accept-${transfer.id}`}
+                    className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-sky-600 disabled:bg-sky-200"
+                  >
+                    {transferAction === `accept-${transfer.id}`
+                      ? t('economyProcessing')
+                      : t('economyAcceptButton')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRejectAccessoryTransfer(transfer.id)}
+                    disabled={transferAction === `reject-${transfer.id}`}
+                    className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
+                  >
+                    {transferAction === `reject-${transfer.id}`
+                      ? t('economyProcessing')
+                      : t('economyRejectButton')}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {incomingAccessoryTransfers.length === 0 && !transferLoading && (
+          <p className="mt-4 text-sm text-slate-600">{t('economyNoPendingAccessories')}</p>
+        )}
       </section>
 
       <section className="rounded-3xl bg-white/90 p-6 shadow-lg">
