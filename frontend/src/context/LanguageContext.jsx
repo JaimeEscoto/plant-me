@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 const LanguageContext = createContext();
 
@@ -6,19 +13,42 @@ const supportedLanguages = [
   { id: 'es', label: 'Español' },
   { id: 'en', label: 'English' },
   { id: 'fr', label: 'Français' },
+  { id: 'ar', label: 'العربية (مصر)' },
 ];
 
 const localeMap = {
   es: 'es-ES',
   en: 'en-US',
   fr: 'fr-FR',
+  ar: 'ar-EG',
 };
 
 const getStoredLanguage = () => {
   if (typeof window === 'undefined') {
     return 'es';
   }
-  return localStorage.getItem('language') || 'es';
+  const [firstSegment] = window.location.pathname.split('/').filter(Boolean);
+  if (firstSegment && supportedLanguages.some((lang) => lang.id === firstSegment)) {
+    return firstSegment;
+  }
+
+  const stored = localStorage.getItem('language');
+  if (stored && supportedLanguages.some((lang) => lang.id === stored)) {
+    return stored;
+  }
+
+  const browserLanguage = window.navigator?.language?.toLowerCase();
+  if (browserLanguage) {
+    const match = supportedLanguages.find(
+      (lang) =>
+        lang.id === browserLanguage || browserLanguage.startsWith(`${lang.id}-`)
+    );
+    if (match) {
+      return match.id;
+    }
+  }
+
+  return 'es';
 };
 
 const translations = {
@@ -430,6 +460,142 @@ const translations = {
     communityCommentRequired: "Écris un commentaire avant de l'envoyer.",
     communityUnknownUser: 'Membre de la communauté',
   },
+  ar: {
+    headerTitle: 'حديقتي الذهنية',
+    navGarden: 'الحديقة',
+    navHistory: 'السجل',
+    navCommunity: 'المجتمع',
+    navLogout: 'تسجيل الخروج',
+    languageLabel: 'اللغة',
+
+    authWelcomeTitle: 'مرحبًا بك في حديقتي الذهنية',
+    authCreateAccountTitle: 'إنشاء حساب',
+    authIntro:
+      'سجل اللحظات الجيدة والسيئة في يومك، صنّفها حسب الفئة، وراقب كيف تنمو النبتة التي تمثل رفاهك.',
+    authUsernameLabel: 'اسم المستخدم',
+    authEmailLabel: 'البريد الإلكتروني',
+    authPasswordLabel: 'كلمة المرور',
+    authProcessing: 'جارٍ المعالجة...',
+    authLoginButton: 'تسجيل الدخول',
+    authRegisterButton: 'التسجيل',
+    authNoAccount: 'ليس لديك حساب؟',
+    authHaveAccount: 'لديك حساب بالفعل؟',
+    authRegisterLink: 'سجل الآن',
+    authLoginLink: 'سجّل الدخول',
+    authDemoTitle: 'هل تريد الاستكشاف بسرعة؟',
+    authDemoText:
+      'استخدم حساب العرض {email} مع كلمة المرور {password} لاستكشاف حديقة تحتوي على أحداث مسجلة.',
+    authDemoButton: 'املأ بيانات العرض التوضيحي',
+
+    gardenLoading: 'جارٍ تحميل حديقتك...',
+    gardenHealth: 'صحة الحديقة: {health}%',
+    gardenMoodNeedsCare: 'حديقتك تحتاج إلى عناية.',
+    gardenMoodBalanced: 'حديقتك متوازنة.',
+    gardenMoodFlourishing: 'حديقتك تزدهر!',
+    gardenMoodDescription:
+      'كل شعور تسجله هو سقي أو جفاف لنبتتك الداخلية. استخدم الفئات للتعرف على الأنماط وموازنة أيامك.',
+    gardenRecordEvent: 'سجّل حدثًا شعوريًا',
+    gardenEditButton: 'تعديل',
+    gardenDeleteButton: 'حذف',
+    gardenNoCategory: 'بدون فئة',
+    gardenTypePositive: 'إيجابي',
+    gardenTypeNegative: 'سلبي',
+    gardenTypeNeutral: 'محايد',
+    gardenNoDescription: 'لا يوجد وصف',
+    gardenNoEvents:
+      'لا توجد لديك أحداث مسجلة بعد. كل شعور تسجله سيغذي أو يستنزف نبتتك بحسب تأثيره.',
+    gardenFormTitle: 'سجّل شعورًا',
+    gardenFormDescription:
+      'صف ما حدث، صنّفه، وأخبرنا كيف أثر في يومك. هكذا سنرى الحديقة تنمو أو تذبل.',
+    gardenFormName: 'الاسم',
+    gardenFormCategory: 'الفئة',
+    gardenFormCategoryPlaceholder: 'مثال: العمل، العلاقات، العناية بالذات',
+    gardenFormType: 'النوع',
+    gardenFormDescriptionLabel: 'الوصف',
+    gardenFormDescriptionPlaceholder: 'صف ما حدث أو كيف شعرت',
+    gardenFormCancel: 'إلغاء',
+    gardenFormSave: 'حفظ',
+    gardenFormSaving: 'جارٍ الحفظ...',
+    gardenEditTitle: 'تحديث الوصف',
+    gardenEditCancel: 'إلغاء',
+    gardenEditUpdate: 'تحديث',
+
+    historyTitle: 'سجل المشاعر',
+    historySubtitle: 'استكشف كيف تطورت حديقتك الذهنية.',
+    historyRange7: 'آخر 7 أيام',
+    historyRange30: 'آخر 30 يومًا',
+    historyRangeAll: 'كامل السجل',
+    historyLoading: 'جارٍ تحميل السجل...',
+    historyError: 'تعذر تحميل السجل.',
+    historyNoCategory: 'بدون فئة',
+    historyNoDescription: 'لا يوجد وصف',
+    historyEmptyRange: 'لا توجد أحداث مسجلة في هذه الفترة.',
+
+    communitySearchTitle: 'ابحث في المجتمع',
+    communitySearchSubtitle:
+      'اكتشف بستانيين شعوريين آخرين بواسطة اسم المستخدم وأضفهم كأصدقاء.',
+    communitySearchPlaceholder: 'ابحث باسم المستخدم',
+    communitySearchButton: 'بحث',
+    communitySearching: 'جارٍ البحث...',
+    communitySearchMinChars: 'اكتب حرفين على الأقل للبحث.',
+    communitySearchError: 'تعذر إتمام البحث.',
+    communityFriendAdded: '{name} أصبح الآن جزءًا من حديقتك الاجتماعية.',
+    communityFriendAddedGeneric: 'تمت إضافة الصديق الجديد بنجاح.',
+    communityAlreadyFriend: 'هو بالفعل من أصدقائك',
+    communityAddFriend: 'أضف صديقًا',
+    communityAddingFriend: 'جارٍ الإضافة...',
+    communityFriendAddedLabel: 'تمت إضافة الصديق',
+
+    communityFriendsTitle: 'أصدقاؤك',
+    communityFriendsSubtitle: 'اكتشف كيف تزدهر حدائق مجتمعك.',
+    communityRefresh: 'تحديث',
+    communityFriendsLoading: 'جارٍ تحميل الأصدقاء...',
+    communityFriendsError: 'تعذر تحميل أصدقائك.',
+    communityNoFriends:
+      'ليس لديك أصدقاء بعد. ابحث عن بستانيين جدد وشارك نموهم الشعوري.',
+    communityHealthLabel: 'الصحة: {health}%',
+    communityFriendshipSince: 'صداقة منذ {date}',
+    communityLastEvent: 'أحدث حدث:',
+    communityNoEventsYet: 'لا توجد أحداث مسجلة بعد.',
+
+    communitySelectedGardenTitle: 'حديقة {name}',
+    communitySelectFriend: 'اختر صديقًا',
+    communitySelectedSubtitle: 'اكتشف أحداثهم الشعورية وساند نموهم.',
+    communityProfileLoading: 'جارٍ تحميل الملف الشخصي...',
+    communityProfileError: 'تعذر تحميل الملف الشخصي المحدد.',
+    communityGardenHealth: 'صحة الحديقة: {health}%',
+    communityLastUpdate: 'آخر تحديث:',
+    communityNoGarden: 'هذا المستخدم لم يُنشئ حديقة بعد.',
+    communitySharedEvents: 'الأحداث المشتركة',
+    communityNoDescriptionAvailable: 'لا يوجد وصف متاح.',
+    communityNoSharedEvents: 'لا توجد أحداث لعرضها بعد.',
+    communitySelectFriendPrompt: 'اختر صديقًا لعرض حديقته الشعورية.',
+    communityNoFriendsProfile:
+      'عندما تضيف أصدقاء ستتمكن من استكشاف حدائقهم وأحداثهم الشعورية هنا.',
+
+    formErrorRegisterPlant: 'تعذر تسجيل النبتة.',
+    formErrorUpdatePlant: 'تعذر تحديث النبتة.',
+    formErrorDeletePlant: 'تعذر حذف النبتة.',
+    authErrorRegister: 'حدث خطأ أثناء التسجيل.',
+    authErrorLogin: 'حدث خطأ أثناء تسجيل الدخول.',
+    authErrorFetchGarden: 'تعذر جلب الحديقة.',
+    communityErrorAddFriend: 'تعذر إضافة الشخص المحدد.',
+    communityActionError: 'تعذر حفظ تفاعلك. حاول مرة أخرى.',
+    communityWorking: 'جارٍ التنفيذ...',
+    communityLikeEvent: 'إعجاب',
+    communityUnlikeEvent: 'إزالة الإعجاب',
+    communityLikeComment: 'إعجاب',
+    communityUnlikeComment: 'إزالة الإعجاب',
+    communityLikesCount: '{count} إعجابات',
+    communityCommentsTitle: 'التعليقات',
+    communityNoComments: 'كن أول من يعلّق.',
+    communityCommentPlaceholder: 'شارك رسالة دعم لصديقك...',
+    communityCommentButton: 'نشر التعليق',
+    communityCommentPosting: 'جارٍ النشر...',
+    communityCommentError: 'تعذر نشر التعليق.',
+    communityCommentRequired: 'اكتب تعليقًا قبل الإرسال.',
+    communityUnknownUser: 'عضو في المجتمع',
+  },
 };
 
 export const LanguageProvider = ({ children }) => {
@@ -438,10 +604,37 @@ export const LanguageProvider = ({ children }) => {
   const changeLanguage = useCallback((nextLanguage) => {
     if (!supportedLanguages.some((lang) => lang.id === nextLanguage)) return;
     setLanguage(nextLanguage);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('language', nextLanguage);
-    }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    localStorage.setItem('language', language);
+
+    const url = new URL(window.location.href);
+    const segments = url.pathname.split('/').filter(Boolean);
+    const hasLanguageSegment =
+      segments.length > 0 && supportedLanguages.some((lang) => lang.id === segments[0]);
+
+    let nextSegments = segments;
+    let shouldUpdate = false;
+
+    if (hasLanguageSegment) {
+      if (segments[0] !== language) {
+        nextSegments = [language, ...segments.slice(1)];
+        shouldUpdate = true;
+      }
+    } else {
+      nextSegments = [language, ...segments];
+      shouldUpdate = true;
+    }
+
+    if (shouldUpdate) {
+      const newPathname = `/${nextSegments.join('/')}`;
+      const newUrl = `${newPathname}${url.search}${url.hash}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [language]);
 
   const t = useCallback(
     (key, replacements = {}) => {
