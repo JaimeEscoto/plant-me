@@ -2,13 +2,31 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
+const emptySeedOverview = {
+  semillas: 0,
+  transferencias: [],
+};
+
 const SeedHistoryView = () => {
-  const { getSeedTransferHistory, user } = useAuth();
+  const {
+    getSeedTransferHistory,
+    getEconomyOverview,
+    transferSeeds,
+    acceptSeedTransfer,
+    rejectSeedTransfer,
+    user,
+  } = useAuth();
   const { t, locale } = useLanguage();
 
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [seedOverview, setSeedOverview] = useState(emptySeedOverview);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState(null);
+  const [seedAction, setSeedAction] = useState(null);
+  const [seedFeedback, setSeedFeedback] = useState(null);
+  const [seedGiftForm, setSeedGiftForm] = useState({ destinatario: '', cantidad: 1, mensaje: '' });
 
   const formatDateTime = useCallback(
     (value) =>
@@ -17,6 +35,26 @@ const SeedHistoryView = () => {
         : '',
     [locale]
   );
+
+  const loadSeedOverview = useCallback(async () => {
+    if (!getEconomyOverview) return;
+    setOverviewLoading(true);
+    setOverviewError(null);
+    try {
+      const data = await getEconomyOverview();
+      setSeedOverview({
+        semillas: data?.semillas ?? 0,
+        transferencias: Array.isArray(data?.transferencias?.semillas)
+          ? data.transferencias.semillas
+          : [],
+      });
+    } catch (err) {
+      setSeedOverview(emptySeedOverview);
+      setOverviewError(t('economyOverviewError'));
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [getEconomyOverview, t]);
 
   const loadHistory = useCallback(async () => {
     if (!getSeedTransferHistory) return;
@@ -34,7 +72,8 @@ const SeedHistoryView = () => {
 
   useEffect(() => {
     loadHistory();
-  }, [loadHistory]);
+    loadSeedOverview();
+  }, [loadHistory, loadSeedOverview]);
 
   const statusLabels = useMemo(
     () => ({
@@ -86,10 +125,95 @@ const SeedHistoryView = () => {
     });
   }, [history, t, user?.id]);
 
+  const seedTransfers = useMemo(
+    () => (Array.isArray(seedOverview.transferencias) ? seedOverview.transferencias : []),
+    [seedOverview.transferencias]
+  );
+
+  const incomingSeedTransfers = useMemo(
+    () => seedTransfers.filter((transfer) => transfer.destinatario_id === user?.id),
+    [seedTransfers, user?.id]
+  );
+
+  const outgoingSeedTransfers = useMemo(
+    () => seedTransfers.filter((transfer) => transfer.remitente_id === user?.id),
+    [seedTransfers, user?.id]
+  );
+
   const getStatusLabel = useCallback(
     (status) => statusLabels[status] || t('economySeedHistoryStatusUnknown'),
     [statusLabels, t]
   );
+
+  const handleSeedGiftChange = (event) => {
+    const { name, value } = event.target;
+    setSeedGiftForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const refreshData = useCallback(() => {
+    loadHistory();
+    loadSeedOverview();
+  }, [loadHistory, loadSeedOverview]);
+
+  const handleSeedTransfer = async (event) => {
+    event.preventDefault();
+    const cantidad = Number.parseInt(seedGiftForm.cantidad, 10);
+    if (!seedGiftForm.destinatario.trim() || Number.isNaN(cantidad) || cantidad <= 0) {
+      setOverviewError(t('economySeedTransferError'));
+      return;
+    }
+
+    setSeedAction('seed-transfer');
+    setOverviewError(null);
+    setSeedFeedback(null);
+    try {
+      await transferSeeds({
+        destinatario: seedGiftForm.destinatario.trim(),
+        cantidad,
+        mensaje: seedGiftForm.mensaje.trim(),
+      });
+      setSeedGiftForm({ destinatario: '', cantidad: 1, mensaje: '' });
+      setSeedFeedback(t('economySeedTransferSuccess'));
+    } catch (err) {
+      setOverviewError(err.response?.data?.error || t('economySeedTransferError'));
+    } finally {
+      setSeedAction(null);
+      await loadSeedOverview();
+      await loadHistory();
+    }
+  };
+
+  const handleAcceptSeedTransfer = async (transferId) => {
+    setSeedAction(`accept-seed-${transferId}`);
+    setOverviewError(null);
+    setSeedFeedback(null);
+    try {
+      await acceptSeedTransfer(transferId);
+      setSeedFeedback(t('economyAcceptTransferSuccess'));
+    } catch (err) {
+      setOverviewError(err.response?.data?.error || t('economyTransferUpdateError'));
+    } finally {
+      setSeedAction(null);
+      await loadSeedOverview();
+      await loadHistory();
+    }
+  };
+
+  const handleRejectSeedTransfer = async (transferId) => {
+    setSeedAction(`reject-seed-${transferId}`);
+    setOverviewError(null);
+    setSeedFeedback(null);
+    try {
+      await rejectSeedTransfer(transferId);
+      setSeedFeedback(t('economyRejectTransferSuccess'));
+    } catch (err) {
+      setOverviewError(err.response?.data?.error || t('economyTransferUpdateError'));
+    } finally {
+      setSeedAction(null);
+      await loadSeedOverview();
+      await loadHistory();
+    }
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -101,13 +225,173 @@ const SeedHistoryView = () => {
           </div>
           <button
             type="button"
-            onClick={loadHistory}
+            onClick={refreshData}
             className="self-start rounded-full bg-gardenGreen px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
           >
             {t('economySeedHistoryRefresh')}
           </button>
         </div>
       </header>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xl font-bold text-gardenGreen">{t('economySeedTransferTitle')}</h3>
+            {overviewLoading && (
+              <span className="text-xs font-semibold text-slate-500">{t('economyLoading')}</span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-slate-600">{t('economySeedTransferSubtitle')}</p>
+          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 shadow">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t('economySeedsLabel')}
+            </p>
+            <p className="mt-1 text-2xl font-bold text-gardenGreen">
+              {overviewLoading ? t('economyLoading') : seedOverview.semillas}
+            </p>
+          </div>
+
+          {overviewError && (
+            <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-600" role="alert">
+              {overviewError}
+            </p>
+          )}
+          {seedFeedback && !overviewError && (
+            <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-600">{seedFeedback}</p>
+          )}
+
+          <form className="mt-4 space-y-3" onSubmit={handleSeedTransfer}>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="destinatario">
+                {t('economySeedTransferRecipient')}
+              </label>
+              <input
+                id="destinatario"
+                name="destinatario"
+                value={seedGiftForm.destinatario}
+                onChange={handleSeedGiftChange}
+                className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
+                placeholder={t('economySeedTransferRecipientPlaceholder')}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="cantidad">
+                  {t('economySeedTransferAmount')}
+                </label>
+                <input
+                  id="cantidad"
+                  name="cantidad"
+                  type="number"
+                  min="1"
+                  value={seedGiftForm.cantidad}
+                  onChange={handleSeedGiftChange}
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="mensaje">
+                  {t('economySeedTransferMessage')}
+                </label>
+                <input
+                  id="mensaje"
+                  name="mensaje"
+                  value={seedGiftForm.mensaje}
+                  onChange={handleSeedGiftChange}
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm shadow focus:border-gardenGreen focus:outline-none focus:ring-2 focus:ring-gardenGreen/40"
+                  placeholder={t('economySeedTransferMessagePlaceholder')}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={seedAction === 'seed-transfer' || overviewLoading}
+              className="w-full rounded-full bg-gardenGreen px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:bg-emerald-200"
+            >
+              {seedAction === 'seed-transfer' ? t('economyProcessing') : t('economySeedTransferSubmit')}
+            </button>
+          </form>
+
+        </div>
+
+        <div className="rounded-3xl bg-white/90 p-6 shadow-lg">
+          <h3 className="text-xl font-bold text-gardenGreen">{t('economyPendingSeedsLabel')}</h3>
+          {overviewLoading && (
+            <p className="mt-1 text-sm text-slate-600">{t('economySeedHistoryLoading')}</p>
+          )}
+          {!overviewLoading && incomingSeedTransfers.length === 0 && outgoingSeedTransfers.length === 0 && (
+            <p className="mt-1 text-sm text-slate-600">{t('economyNoPendingSeeds')}</p>
+          )}
+          <div className="mt-4 space-y-4">
+            {incomingSeedTransfers.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gardenSoil">
+                  {t('economyPendingSeedsIncomingLabel')}
+                </h4>
+                <ul className="space-y-2">
+                  {incomingSeedTransfers.map((transfer) => (
+                    <li key={transfer.id} className="rounded-2xl bg-emerald-50 p-3 shadow-sm">
+                      <p className="text-sm font-semibold text-emerald-700">
+                        {t('economySeedTransferFromLabel', {
+                          name: transfer.remitente?.nombre_usuario || t('communityUnknownUser'),
+                          amount: transfer.cantidad,
+                        })}
+                      </p>
+                      <p className="mt-1 text-xs text-emerald-700">{formatDateTime(transfer.fecha_creacion)}</p>
+                      {transfer.mensaje && (
+                        <p className="mt-1 text-xs text-emerald-700">{transfer.mensaje}</p>
+                      )}
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptSeedTransfer(transfer.id)}
+                          disabled={seedAction === `accept-seed-${transfer.id}`}
+                          className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-600 disabled:bg-emerald-200"
+                        >
+                          {seedAction === `accept-seed-${transfer.id}`
+                            ? t('economyProcessing')
+                            : t('economyAcceptButton')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRejectSeedTransfer(transfer.id)}
+                          disabled={seedAction === `reject-seed-${transfer.id}`}
+                          className="rounded-full bg-rose-400 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-rose-500 disabled:bg-rose-200"
+                        >
+                          {seedAction === `reject-seed-${transfer.id}`
+                            ? t('economyProcessing')
+                            : t('economyRejectButton')}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {outgoingSeedTransfers.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gardenSoil">
+                  {t('economyPendingSeedsOutgoingLabel')}
+                </h4>
+                <ul className="space-y-2">
+                  {outgoingSeedTransfers.map((transfer) => (
+                    <li key={transfer.id} className="rounded-2xl bg-slate-50 p-3 shadow-sm">
+                      <p className="text-sm font-semibold text-slate-700">
+                        {t('economySeedTransferToLabel', {
+                          name: transfer.destinatario?.nombre_usuario || t('communityUnknownUser'),
+                          amount: transfer.cantidad,
+                        })}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">{formatDateTime(transfer.fecha_creacion)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-3xl bg-white/90 p-6 shadow-lg">
         {loading && <p className="text-sm text-slate-600">{t('economySeedHistoryLoading')}</p>}
