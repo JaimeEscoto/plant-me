@@ -60,7 +60,7 @@ const AdminUserManagement = () => {
   }, [filter, users]);
 
   const handleSelectUser = (userId) => {
-    setSelectedUserId(userId);
+    setSelectedUserId(userId || '');
     setFeedback(null);
   };
 
@@ -79,8 +79,8 @@ const AdminUserManagement = () => {
       return;
     }
 
-    const parsedUserId = Number.parseInt(selectedUserId, 10);
-    if (!Number.isFinite(parsedUserId)) {
+    const parsedUserId = typeof selectedUserId === 'string' ? selectedUserId.trim() : '';
+    if (!parsedUserId) {
       setFeedback({ type: 'error', message: t('adminGrantError') });
       return;
     }
