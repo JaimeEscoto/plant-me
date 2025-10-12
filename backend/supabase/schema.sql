@@ -99,7 +99,8 @@ create table if not exists public.plantas (
   categoria text not null,
   tipo text not null references public.event_types(code) on update cascade,
   fecha_plantado timestamptz not null default timezone('utc', now()),
-  descripcion text
+  descripcion text,
+  foto text
 );
 
 alter table if exists public.plantas drop constraint if exists plantas_tipo_check;
@@ -110,6 +111,9 @@ alter table if exists public.plantas
 alter table if exists public.plantas drop constraint if exists plantas_categoria_fkey;
 alter table if exists public.plantas
   add constraint plantas_categoria_fkey foreign key (categoria) references public.event_categories(code) on update cascade;
+
+alter table if exists public.plantas
+  add column if not exists foto text;
 
 create index if not exists plantas_jardin_id_idx on public.plantas (jardin_id);
 create index if not exists plantas_jardin_fecha_idx on public.plantas (jardin_id, fecha_plantado desc);

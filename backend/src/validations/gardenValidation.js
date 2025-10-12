@@ -5,6 +5,11 @@ exports.createPlantSchema = Joi.object({
   categoria: Joi.string().trim().lowercase().pattern(/^[a-z0-9_-]+$/).min(2).max(60).required(),
   tipo: Joi.string().trim().min(2).max(60).required(),
   descripcion: Joi.string().trim().max(500).allow('', null),
+  foto: Joi.string()
+    .trim()
+    .dataUri({ scheme: [/^data:image\//] })
+    .max(5_000_000)
+    .optional(),
 });
 
 exports.updatePlantSchema = Joi.object({
