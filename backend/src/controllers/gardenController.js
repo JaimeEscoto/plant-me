@@ -107,6 +107,20 @@ exports.createPlant = async (req, res, next) => {
       return res.status(400).json({ error: 'Tipo de evento no válido.' });
     }
 
+    const { data: eventCategory, error: eventCategoryError } = await supabase
+      .from('event_categories')
+      .select('id, code')
+      .eq('code', value.categoria)
+      .maybeSingle();
+
+    if (eventCategoryError) {
+      throw toHttpError(eventCategoryError, 'No se pudo validar la categoría del evento.');
+    }
+
+    if (!eventCategory) {
+      return res.status(400).json({ error: 'Categoría de evento no válida.' });
+    }
+
     const { data: plant, error: createError } = await supabase
       .from('plantas')
       .insert({
@@ -335,6 +349,43 @@ exports.getEventTypes = async (req, res, next) => {
     });
 
     return res.json(eventTypes);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getEventCategories = async (req, res, next) => {
+  try {
+    const requestedLanguage =
+      typeof req.query.lang === 'string' && req.query.lang.trim().length
+        ? req.query.lang.trim().toLowerCase()
+        : 'es';
+
+    const { data, error } = await supabase
+      .from('event_categories')
+      .select('id, code, position, event_category_translations(language, label)')
+      .order('position', { ascending: true })
+      .order('code', { ascending: true });
+
+    if (error) {
+      throw toHttpError(error, 'No se pudieron obtener las categorías de evento.');
+    }
+
+    const eventCategories = (data || []).map((item) => {
+      const translations = Array.isArray(item.event_category_translations)
+        ? item.event_category_translations
+        : [];
+      const preferred = translations.find((translation) => translation.language === requestedLanguage);
+      const fallback = translations.find((translation) => translation.language === 'es');
+
+      return {
+        code: item.code,
+        label: preferred?.label || fallback?.label || item.code,
+        position: item.position,
+      };
+    });
+
+    return res.json(eventCategories);
   } catch (err) {
     return next(err);
   }

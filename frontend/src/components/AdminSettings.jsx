@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
+import { useEventCategories } from '../context/EventCategoryContext';
 
-const buildEmptyForm = (languages) => {
+const buildEmptyTypeForm = (languages) => {
   const labels = languages.reduce((acc, language) => {
     acc[language.id] = '';
     return acc;
@@ -18,93 +19,152 @@ const buildEmptyForm = (languages) => {
   };
 };
 
+const buildEmptyCategoryForm = (languages) => {
+  const labels = languages.reduce((acc, language) => {
+    acc[language.id] = '';
+    return acc;
+  }, {});
+
+  return {
+    code: '',
+    position: 0,
+    labels,
+  };
+};
+
 const AdminSettings = () => {
   const {
     getAdminEventTypes,
     createAdminEventType,
     updateAdminEventType,
     deleteAdminEventType,
+    getAdminEventCategories,
+    createAdminEventCategory,
+    updateAdminEventCategory,
+    deleteAdminEventCategory,
   } = useAuth();
   const { t, languages, language } = useLanguage();
   const { refreshEventTypes } = useEventTypes();
+  const { refreshCategories } = useEventCategories();
 
   const [eventTypes, setEventTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [form, setForm] = useState(() => buildEmptyForm(languages));
-  const [selectedType, setSelectedType] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState(null);
-  const [formError, setFormError] = useState(null);
+  const [eventTypesLoading, setEventTypesLoading] = useState(true);
+  const [eventTypesError, setEventTypesError] = useState(null);
+  const [eventTypeForm, setEventTypeForm] = useState(() => buildEmptyTypeForm(languages));
+  const [selectedEventType, setSelectedEventType] = useState(null);
+  const [eventTypeSaving, setEventTypeSaving] = useState(false);
+  const [eventTypeFeedback, setEventTypeFeedback] = useState(null);
+  const [eventTypeFormError, setEventTypeFormError] = useState(null);
+
+  const [eventCategories, setEventCategories] = useState([]);
+  const [eventCategoriesLoading, setEventCategoriesLoading] = useState(true);
+  const [eventCategoriesError, setEventCategoriesError] = useState(null);
+  const [eventCategoryForm, setEventCategoryForm] = useState(() => buildEmptyCategoryForm(languages));
+  const [selectedEventCategory, setSelectedEventCategory] = useState(null);
+  const [eventCategorySaving, setEventCategorySaving] = useState(false);
+  const [eventCategoryFeedback, setEventCategoryFeedback] = useState(null);
+  const [eventCategoryFormError, setEventCategoryFormError] = useState(null);
 
   const currentLanguage = language;
 
-  const resetForm = () => {
-    setSelectedType(null);
-    setForm(buildEmptyForm(languages));
-    setFormError(null);
+  const resetEventTypeForm = () => {
+    setSelectedEventType(null);
+    setEventTypeForm(buildEmptyTypeForm(languages));
+    setEventTypeFormError(null);
+    setEventTypeFeedback(null);
+  };
+
+  const resetEventCategoryForm = () => {
+    setSelectedEventCategory(null);
+    setEventCategoryForm(buildEmptyCategoryForm(languages));
+    setEventCategoryFormError(null);
+    setEventCategoryFeedback(null);
   };
 
   const loadEventTypes = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setEventTypesLoading(true);
+    setEventTypesError(null);
     try {
       const data = await getAdminEventTypes();
       setEventTypes(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err?.response?.data?.error || t('adminEventTypeError'));
+      setEventTypesError(err?.response?.data?.error || t('adminEventTypeError'));
       setEventTypes([]);
     } finally {
-      setLoading(false);
+      setEventTypesLoading(false);
     }
   }, [getAdminEventTypes, t]);
 
-  useEffect(() => {
-    loadEventTypes();
-  }, [loadEventTypes]);
+  const loadEventCategories = useCallback(async () => {
+    setEventCategoriesLoading(true);
+    setEventCategoriesError(null);
+    try {
+      const data = await getAdminEventCategories();
+      setEventCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setEventCategoriesError(err?.response?.data?.error || t('adminEventCategoryError'));
+      setEventCategories([]);
+    } finally {
+      setEventCategoriesLoading(false);
+    }
+  }, [getAdminEventCategories, t]);
 
   useEffect(() => {
-    setForm((prev) => ({
-      ...buildEmptyForm(languages),
+    loadEventTypes();
+    loadEventCategories();
+  }, [loadEventCategories, loadEventTypes]);
+
+  useEffect(() => {
+    setEventTypeForm((prev) => ({
+      ...buildEmptyTypeForm(languages),
       ...prev,
       labels: {
-        ...buildEmptyForm(languages).labels,
+        ...buildEmptyTypeForm(languages).labels,
+        ...prev.labels,
+      },
+    }));
+
+    setEventCategoryForm((prev) => ({
+      ...buildEmptyCategoryForm(languages),
+      ...prev,
+      labels: {
+        ...buildEmptyCategoryForm(languages).labels,
         ...prev.labels,
       },
     }));
   }, [languages]);
 
-  const handleSelect = (eventType) => {
+  const handleEventTypeSelect = (eventType) => {
     if (!eventType) {
-      resetForm();
+      resetEventTypeForm();
       return;
     }
 
-    setSelectedType(eventType);
-    setForm({
+    setSelectedEventType(eventType);
+    setEventTypeForm({
       code: eventType.code || '',
       plantDelta: eventType.plantDelta ?? 0,
       removeDelta: eventType.removeDelta ?? 0,
       position: eventType.position ?? 0,
       labels: {
-        ...buildEmptyForm(languages).labels,
+        ...buildEmptyTypeForm(languages).labels,
         ...(eventType.labels || {}),
       },
     });
-    setFormError(null);
-    setFeedback(null);
+    setEventTypeFormError(null);
+    setEventTypeFeedback(null);
   };
 
-  const handleChange = (event) => {
+  const handleEventTypeChange = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({
+    setEventTypeForm((prev) => ({
       ...prev,
       [name]: name === 'code' ? value : Number(value),
     }));
   };
 
-  const handleLabelChange = (languageId, value) => {
-    setForm((prev) => ({
+  const handleEventTypeLabelChange = (languageId, value) => {
+    setEventTypeForm((prev) => ({
       ...prev,
       labels: {
         ...prev.labels,
@@ -113,99 +173,229 @@ const AdminSettings = () => {
     }));
   };
 
-  const validateForm = () => {
-    if (!form.code.trim()) {
-      setFormError(t('adminEventTypeCodeRequired'));
+  const validateEventTypeForm = () => {
+    if (!eventTypeForm.code.trim()) {
+      setEventTypeFormError(t('adminEventTypeCodeRequired'));
       return false;
     }
 
-    const missing = languages.filter((lang) => !form.labels[lang.id]?.trim());
+    const missing = languages.filter((lang) => !eventTypeForm.labels[lang.id]?.trim());
     if (missing.length > 0) {
-      setFormError(t('adminEventTypeMissingLabels'));
+      setEventTypeFormError(t('adminEventTypeMissingLabels'));
       return false;
     }
 
-    setFormError(null);
+    setEventTypeFormError(null);
     return true;
   };
 
-  const submitForm = async (event) => {
+  const submitEventTypeForm = async (event) => {
     event.preventDefault();
-    if (!validateForm()) return;
+    if (!validateEventTypeForm()) return;
 
-    setSaving(true);
-    setFeedback(null);
+    setEventTypeSaving(true);
+    setEventTypeFeedback(null);
     try {
       const payload = {
-        code: form.code.trim(),
-        plantDelta: Number(form.plantDelta) || 0,
-        removeDelta: Number(form.removeDelta) || 0,
-        position: Number(form.position) || 0,
+        code: eventTypeForm.code.trim(),
+        plantDelta: Number(eventTypeForm.plantDelta) || 0,
+        removeDelta: Number(eventTypeForm.removeDelta) || 0,
+        position: Number(eventTypeForm.position) || 0,
         labels: languages.reduce((acc, lang) => {
-          acc[lang.id] = form.labels[lang.id].trim();
+          acc[lang.id] = eventTypeForm.labels[lang.id].trim();
           return acc;
         }, {}),
       };
 
       let savedType;
-      if (selectedType) {
-        savedType = await updateAdminEventType(selectedType.id, payload);
-        setFeedback(t('adminEventTypeUpdated'));
+      if (selectedEventType) {
+        savedType = await updateAdminEventType(selectedEventType.id, payload);
+        setEventTypeFeedback(t('adminEventTypeUpdated'));
       } else {
         savedType = await createAdminEventType(payload);
-        setFeedback(t('adminEventTypeCreated'));
+        setEventTypeFeedback(t('adminEventTypeCreated'));
       }
 
       await loadEventTypes();
       await refreshEventTypes();
 
       if (savedType) {
-        handleSelect(savedType);
+        handleEventTypeSelect(savedType);
       } else {
-        resetForm();
+        resetEventTypeForm();
       }
     } catch (err) {
-      setFormError(err?.response?.data?.error || t('adminEventTypeError'));
+      setEventTypeFormError(err?.response?.data?.error || t('adminEventTypeError'));
     } finally {
-      setSaving(false);
+      setEventTypeSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedType) return;
+  const handleDeleteEventType = async () => {
+    if (!selectedEventType) return;
     const confirmation = window.confirm(
-      t('adminEventTypeConfirmDelete', { code: selectedType.code })
+      t('adminEventTypeConfirmDelete', { code: selectedEventType.code })
     );
     if (!confirmation) return;
 
-    setSaving(true);
-    setFormError(null);
-    setFeedback(null);
+    setEventTypeSaving(true);
+    setEventTypeFormError(null);
+    setEventTypeFeedback(null);
     try {
-      await deleteAdminEventType(selectedType.id);
-      setFeedback(t('adminEventTypeDeleted'));
-      resetForm();
+      await deleteAdminEventType(selectedEventType.id);
+      setEventTypeFeedback(t('adminEventTypeDeleted'));
+      resetEventTypeForm();
       await loadEventTypes();
       await refreshEventTypes();
     } catch (err) {
       const message = err?.response?.data?.error;
       if (message && (message.toLowerCase().includes('uso') || message.toLowerCase().includes('use'))) {
-        setFormError(t('adminEventTypeInUse'));
+        setEventTypeFormError(t('adminEventTypeInUse'));
       } else {
-        setFormError(message || t('adminEventTypeError'));
+        setEventTypeFormError(message || t('adminEventTypeError'));
       }
     } finally {
-      setSaving(false);
+      setEventTypeSaving(false);
     }
   };
 
-  const displayedTypes = useMemo(
+  const handleEventCategorySelect = (category) => {
+    if (!category) {
+      resetEventCategoryForm();
+      return;
+    }
+
+    setSelectedEventCategory(category);
+    setEventCategoryForm({
+      code: category.code || '',
+      position: category.position ?? 0,
+      labels: {
+        ...buildEmptyCategoryForm(languages).labels,
+        ...(category.labels || {}),
+      },
+    });
+    setEventCategoryFormError(null);
+    setEventCategoryFeedback(null);
+  };
+
+  const handleEventCategoryChange = (event) => {
+    const { name, value } = event.target;
+    setEventCategoryForm((prev) => ({
+      ...prev,
+      [name]: name === 'code' ? value : Number(value),
+    }));
+  };
+
+  const handleEventCategoryLabelChange = (languageId, value) => {
+    setEventCategoryForm((prev) => ({
+      ...prev,
+      labels: {
+        ...prev.labels,
+        [languageId]: value,
+      },
+    }));
+  };
+
+  const validateEventCategoryForm = () => {
+    if (!eventCategoryForm.code.trim()) {
+      setEventCategoryFormError(t('adminEventCategoryCodeRequired'));
+      return false;
+    }
+
+    const missing = languages.filter((lang) => !eventCategoryForm.labels[lang.id]?.trim());
+    if (missing.length > 0) {
+      setEventCategoryFormError(t('adminEventCategoryMissingLabels'));
+      return false;
+    }
+
+    setEventCategoryFormError(null);
+    return true;
+  };
+
+  const submitEventCategoryForm = async (event) => {
+    event.preventDefault();
+    if (!validateEventCategoryForm()) return;
+
+    setEventCategorySaving(true);
+    setEventCategoryFeedback(null);
+    try {
+      const payload = {
+        code: eventCategoryForm.code.trim(),
+        position: Number(eventCategoryForm.position) || 0,
+        labels: languages.reduce((acc, lang) => {
+          acc[lang.id] = eventCategoryForm.labels[lang.id].trim();
+          return acc;
+        }, {}),
+      };
+
+      let savedCategory;
+      if (selectedEventCategory) {
+        savedCategory = await updateAdminEventCategory(selectedEventCategory.id, payload);
+        setEventCategoryFeedback(t('adminEventCategoryUpdated'));
+      } else {
+        savedCategory = await createAdminEventCategory(payload);
+        setEventCategoryFeedback(t('adminEventCategoryCreated'));
+      }
+
+      await loadEventCategories();
+      await refreshCategories();
+
+      if (savedCategory) {
+        handleEventCategorySelect(savedCategory);
+      } else {
+        resetEventCategoryForm();
+      }
+    } catch (err) {
+      setEventCategoryFormError(err?.response?.data?.error || t('adminEventCategoryError'));
+    } finally {
+      setEventCategorySaving(false);
+    }
+  };
+
+  const handleDeleteEventCategory = async () => {
+    if (!selectedEventCategory) return;
+    const confirmation = window.confirm(
+      t('adminEventCategoryConfirmDelete', { code: selectedEventCategory.code })
+    );
+    if (!confirmation) return;
+
+    setEventCategorySaving(true);
+    setEventCategoryFormError(null);
+    setEventCategoryFeedback(null);
+    try {
+      await deleteAdminEventCategory(selectedEventCategory.id);
+      setEventCategoryFeedback(t('adminEventCategoryDeleted'));
+      resetEventCategoryForm();
+      await loadEventCategories();
+      await refreshCategories();
+    } catch (err) {
+      const message = err?.response?.data?.error;
+      if (message && (message.toLowerCase().includes('uso') || message.toLowerCase().includes('use'))) {
+        setEventCategoryFormError(t('adminEventCategoryInUse'));
+      } else {
+        setEventCategoryFormError(message || t('adminEventCategoryError'));
+      }
+    } finally {
+      setEventCategorySaving(false);
+    }
+  };
+
+  const displayedEventTypes = useMemo(
     () =>
       eventTypes.map((eventType) => ({
         ...eventType,
         displayLabel: eventType.labels?.[currentLanguage] || eventType.code,
       })),
     [eventTypes, currentLanguage]
+  );
+
+  const displayedEventCategories = useMemo(
+    () =>
+      eventCategories.map((category) => ({
+        ...category,
+        displayLabel: category.labels?.[currentLanguage] || category.code,
+      })),
+    [eventCategories, currentLanguage]
   );
 
   return (
@@ -224,39 +414,39 @@ const AdminSettings = () => {
                 type="button"
                 className="rounded-full border border-slate-200 px-4 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                 onClick={loadEventTypes}
-                disabled={loading}
+                disabled={eventTypesLoading}
               >
                 {t('adminEventTypeRefresh')}
               </button>
               <button
                 type="button"
                 className="rounded-full bg-gardenGreen px-4 py-1 text-sm font-semibold text-white hover:bg-emerald-600"
-                onClick={resetForm}
+                onClick={resetEventTypeForm}
               >
                 {t('adminEventTypeNew')}
               </button>
             </div>
           </div>
 
-          {loading && <p className="text-sm text-slate-500">{t('adminEventTypeLoading')}</p>}
-          {error && <p className="text-sm text-rose-600">{error}</p>}
-          {!loading && !error && (
+          {eventTypesLoading && <p className="text-sm text-slate-500">{t('adminEventTypeLoading')}</p>}
+          {eventTypesError && <p className="text-sm text-rose-600">{eventTypesError}</p>}
+          {!eventTypesLoading && !eventTypesError && (
             <p className="mb-3 text-sm text-slate-600">{t('adminEventTypesDescription')}</p>
           )}
 
-          {!loading && !error && displayedTypes.length === 0 && (
+          {!eventTypesLoading && !eventTypesError && displayedEventTypes.length === 0 && (
             <p className="text-sm text-slate-500">{t('adminEventTypeNoData')}</p>
           )}
 
-          {!loading && !error && displayedTypes.length > 0 && (
+          {!eventTypesLoading && !eventTypesError && displayedEventTypes.length > 0 && (
             <ul className="space-y-3">
-              {displayedTypes.map((eventType) => {
-                const isActive = selectedType?.id === eventType.id;
+              {displayedEventTypes.map((eventType) => {
+                const isActive = selectedEventType?.id === eventType.id;
                 return (
                   <li key={eventType.id}>
                     <button
                       type="button"
-                      onClick={() => handleSelect(eventType)}
+                      onClick={() => handleEventTypeSelect(eventType)}
                       className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                         isActive
                           ? 'border-gardenGreen bg-emerald-50/70 text-emerald-800 shadow'
@@ -273,8 +463,7 @@ const AdminSettings = () => {
                       </div>
                       <p className="mt-1 text-sm text-slate-600">{eventType.displayLabel}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {t('adminEventTypePlantDelta')}: {eventType.plantDelta} · {t('adminEventTypeRemoveDelta')}:{' '}
-                        {eventType.removeDelta}
+                        {t('adminEventTypePlantDelta')}: {eventType.plantDelta} · {t('adminEventTypeRemoveDelta')}: {eventType.removeDelta}
                       </p>
                     </button>
                   </li>
@@ -285,35 +474,35 @@ const AdminSettings = () => {
         </section>
 
         <section className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
-          <form className="space-y-4" onSubmit={submitForm}>
+          <form className="space-y-4" onSubmit={submitEventTypeForm}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">
-                {selectedType ? t('adminEventTypeUpdate') : t('adminEventTypeCreate')}
+                {selectedEventType ? t('adminEventTypeUpdate') : t('adminEventTypeCreate')}
               </h3>
-              {selectedType && (
+              {selectedEventType && (
                 <button
                   type="button"
                   className="rounded-full border border-rose-200 px-3 py-1 text-sm font-semibold text-rose-600 hover:bg-rose-50"
-                  onClick={handleDelete}
-                  disabled={saving}
+                  onClick={handleDeleteEventType}
+                  disabled={eventTypeSaving}
                 >
                   {t('adminEventTypeDelete')}
                 </button>
               )}
             </div>
 
-            {feedback && <p className="text-sm text-emerald-600">{feedback}</p>}
-            {formError && <p className="text-sm text-rose-600">{formError}</p>}
+            {eventTypeFeedback && <p className="text-sm text-emerald-600">{eventTypeFeedback}</p>}
+            {eventTypeFormError && <p className="text-sm text-rose-600">{eventTypeFormError}</p>}
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600" htmlFor="code">
+              <label className="block text-sm font-semibold text-slate-600" htmlFor="eventTypeCode">
                 {t('adminEventTypeCode')}
               </label>
               <input
-                id="code"
+                id="eventTypeCode"
                 name="code"
-                value={form.code}
-                onChange={handleChange}
+                value={eventTypeForm.code}
+                onChange={handleEventTypeChange}
                 className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
               />
               <p className="mt-1 text-xs text-slate-500">{t('adminEventTypeCodeHelper')}</p>
@@ -328,8 +517,8 @@ const AdminSettings = () => {
                   id="plantDelta"
                   name="plantDelta"
                   type="number"
-                  value={form.plantDelta}
-                  onChange={handleChange}
+                  value={eventTypeForm.plantDelta}
+                  onChange={handleEventTypeChange}
                   className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
                 />
               </div>
@@ -341,21 +530,21 @@ const AdminSettings = () => {
                   id="removeDelta"
                   name="removeDelta"
                   type="number"
-                  value={form.removeDelta}
-                  onChange={handleChange}
+                  value={eventTypeForm.removeDelta}
+                  onChange={handleEventTypeChange}
                   className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-600" htmlFor="position">
+                <label className="block text-sm font-semibold text-slate-600" htmlFor="eventTypePosition">
                   {t('adminEventTypePosition')}
                 </label>
                 <input
-                  id="position"
+                  id="eventTypePosition"
                   name="position"
                   type="number"
-                  value={form.position}
-                  onChange={handleChange}
+                  value={eventTypeForm.position}
+                  onChange={handleEventTypeChange}
                   className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
                 />
               </div>
@@ -367,13 +556,13 @@ const AdminSettings = () => {
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {languages.map((lang) => (
                   <div key={lang.id}>
-                    <label className="block text-xs font-semibold text-slate-500" htmlFor={`label-${lang.id}`}>
+                    <label className="block text-xs font-semibold text-slate-500" htmlFor={`event-type-label-${lang.id}`}>
                       {lang.label}
                     </label>
                     <input
-                      id={`label-${lang.id}`}
-                      value={form.labels[lang.id] || ''}
-                      onChange={(event) => handleLabelChange(lang.id, event.target.value)}
+                      id={`event-type-label-${lang.id}`}
+                      value={eventTypeForm.labels[lang.id] || ''}
+                      onChange={(event) => handleEventTypeLabelChange(lang.id, event.target.value)}
                       className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
                     />
                   </div>
@@ -382,12 +571,12 @@ const AdminSettings = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-3">
-              {selectedType && (
+              {selectedEventType && (
                 <button
                   type="button"
                   className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                  onClick={resetForm}
-                  disabled={saving}
+                  onClick={resetEventTypeForm}
+                  disabled={eventTypeSaving}
                 >
                   {t('adminEventTypeCancel')}
                 </button>
@@ -395,9 +584,176 @@ const AdminSettings = () => {
               <button
                 type="submit"
                 className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
-                disabled={saving}
+                disabled={eventTypeSaving}
               >
-                {saving ? t('gardenFormSaving') : selectedType ? t('adminEventTypeSave') : t('adminEventTypeCreate')}
+                {eventTypeSaving
+                  ? t('gardenFormSaving')
+                  : selectedEventType
+                  ? t('adminEventTypeSave')
+                  : t('adminEventTypeCreate')}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+        <section className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-slate-900">{t('adminEventCategoriesTitle')}</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-slate-200 px-4 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                onClick={loadEventCategories}
+                disabled={eventCategoriesLoading}
+              >
+                {t('adminEventCategoryRefresh')}
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-gardenGreen px-4 py-1 text-sm font-semibold text-white hover:bg-emerald-600"
+                onClick={resetEventCategoryForm}
+              >
+                {t('adminEventCategoryNew')}
+              </button>
+            </div>
+          </div>
+
+          {eventCategoriesLoading && (
+            <p className="text-sm text-slate-500">{t('adminEventCategoryLoading')}</p>
+          )}
+          {eventCategoriesError && <p className="text-sm text-rose-600">{eventCategoriesError}</p>}
+          {!eventCategoriesLoading && !eventCategoriesError && (
+            <p className="mb-3 text-sm text-slate-600">{t('adminEventCategoriesDescription')}</p>
+          )}
+
+          {!eventCategoriesLoading && !eventCategoriesError && displayedEventCategories.length === 0 && (
+            <p className="text-sm text-slate-500">{t('adminEventCategoryNoData')}</p>
+          )}
+
+          {!eventCategoriesLoading && !eventCategoriesError && displayedEventCategories.length > 0 && (
+            <ul className="space-y-3">
+              {displayedEventCategories.map((category) => {
+                const isActive = selectedEventCategory?.id === category.id;
+                return (
+                  <li key={category.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleEventCategorySelect(category)}
+                      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                        isActive
+                          ? 'border-gardenGreen bg-emerald-50/70 text-emerald-800 shadow'
+                          : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/50'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                          {category.code}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {t('adminEventCategoryPosition')}: {category.position ?? 0}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">{category.displayLabel}</p>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
+          <form className="space-y-4" onSubmit={submitEventCategoryForm}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">
+                {selectedEventCategory ? t('adminEventCategoryUpdate') : t('adminEventCategoryCreate')}
+              </h3>
+              {selectedEventCategory && (
+                <button
+                  type="button"
+                  className="rounded-full border border-rose-200 px-3 py-1 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                  onClick={handleDeleteEventCategory}
+                  disabled={eventCategorySaving}
+                >
+                  {t('adminEventCategoryDelete')}
+                </button>
+              )}
+            </div>
+
+            {eventCategoryFeedback && <p className="text-sm text-emerald-600">{eventCategoryFeedback}</p>}
+            {eventCategoryFormError && <p className="text-sm text-rose-600">{eventCategoryFormError}</p>}
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600" htmlFor="eventCategoryCode">
+                {t('adminEventCategoryCode')}
+              </label>
+              <input
+                id="eventCategoryCode"
+                name="code"
+                value={eventCategoryForm.code}
+                onChange={handleEventCategoryChange}
+                className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-slate-500">{t('adminEventCategoryCodeHelper')}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600" htmlFor="eventCategoryPosition">
+                {t('adminEventCategoryPosition')}
+              </label>
+              <input
+                id="eventCategoryPosition"
+                name="position"
+                type="number"
+                value={eventCategoryForm.position}
+                onChange={handleEventCategoryChange}
+                className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-slate-600">{t('adminEventCategoryLabels')}</h4>
+              <p className="text-xs text-slate-500">{t('adminEventCategoryLabelHelper')}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {languages.map((lang) => (
+                  <div key={lang.id}>
+                    <label className="block text-xs font-semibold text-slate-500" htmlFor={`event-category-label-${lang.id}`}>
+                      {lang.label}
+                    </label>
+                    <input
+                      id={`event-category-label-${lang.id}`}
+                      value={eventCategoryForm.labels[lang.id] || ''}
+                      onChange={(event) => handleEventCategoryLabelChange(lang.id, event.target.value)}
+                      className="mt-1 w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {selectedEventCategory && (
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                  onClick={resetEventCategoryForm}
+                  disabled={eventCategorySaving}
+                >
+                  {t('adminEventTypeCancel')}
+                </button>
+              )}
+              <button
+                type="submit"
+                className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                disabled={eventCategorySaving}
+              >
+                {eventCategorySaving
+                  ? t('gardenFormSaving')
+                  : selectedEventCategory
+                  ? t('adminEventCategorySave')
+                  : t('adminEventCategoryCreate')}
               </button>
             </div>
           </form>

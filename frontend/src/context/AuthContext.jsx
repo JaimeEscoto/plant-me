@@ -342,6 +342,41 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getAdminEventCategories = useCallback(async () => {
+    if (!token) return [];
+    const { data } = await api.get('/admin/config/event-categories', { headers: authHeaders });
+    return data?.eventCategories || [];
+  }, [authHeaders, token]);
+
+  const createAdminEventCategory = useCallback(
+    async (payload) => {
+      if (!token) return null;
+      const { data } = await api.post('/admin/config/event-categories', payload, { headers: authHeaders });
+      return data?.eventCategory || null;
+    },
+    [authHeaders, token]
+  );
+
+  const updateAdminEventCategory = useCallback(
+    async (eventCategoryId, payload) => {
+      if (!token) return null;
+      const { data } = await api.put(`/admin/config/event-categories/${eventCategoryId}`, payload, {
+        headers: authHeaders,
+      });
+      return data?.eventCategory || null;
+    },
+    [authHeaders, token]
+  );
+
+  const deleteAdminEventCategory = useCallback(
+    async (eventCategoryId) => {
+      if (!token) return null;
+      await api.delete(`/admin/config/event-categories/${eventCategoryId}`, { headers: authHeaders });
+      return true;
+    },
+    [authHeaders, token]
+  );
+
   const value = {
     token,
     user,
@@ -379,6 +414,10 @@ export const AuthProvider = ({ children }) => {
     createAdminEventType,
     updateAdminEventType,
     deleteAdminEventType,
+    getAdminEventCategories,
+    createAdminEventCategory,
+    updateAdminEventCategory,
+    deleteAdminEventCategory,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

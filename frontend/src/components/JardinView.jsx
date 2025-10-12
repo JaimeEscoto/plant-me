@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
+import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 
 const moodStyles = [
@@ -10,13 +11,6 @@ const moodStyles = [
   { limit: 66, bg: 'from-emerald-100 via-lime-100 to-teal-100', messageKey: 'gardenMoodBalanced' },
   { limit: 100, bg: 'from-emerald-200 via-teal-200 to-sky-200', messageKey: 'gardenMoodFlourishing' },
 ];
-
-const categorySuggestionsMap = {
-  es: ['Trabajo', 'Relaciones', 'Autocuidado', 'Salud', 'Aprendizaje', 'Otro'],
-  en: ['Work', 'Relationships', 'Self-care', 'Health', 'Learning', 'Other'],
-  fr: ['Travail', 'Relations', 'Auto-soin', 'Santé', 'Apprentissage', 'Autre'],
-  ar: ['العمل', 'العلاقات', 'العناية الذاتية', 'الصحة', 'التعلم', 'أخرى'],
-};
 
 const getMood = (health) => moodStyles.find((mood) => health <= mood.limit) || moodStyles[2];
 
@@ -41,9 +35,7 @@ const JardinView = () => {
   } = useAuth();
   const { t, language, locale } = useLanguage();
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState(() =>
-    buildEmptyForm(categorySuggestionsMap[language]?.[0] || '', '')
-  );
+  const [form, setForm] = useState(() => buildEmptyForm('', ''));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [editingPlant, setEditingPlant] = useState(null);
@@ -57,20 +49,27 @@ const JardinView = () => {
 
   const { eventTypes, loading: eventTypesLoading, error: eventTypesError, getLabelForType, getEventTypeByCode } =
     useEventTypes();
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesError,
+    refreshCategories,
+    getLabelForCategory,
+  } = useEventCategories();
 
   const defaultEventType = useMemo(() => eventTypes[0]?.code || '', [eventTypes]);
 
-  const categorySuggestions = useMemo(
-    () => categorySuggestionsMap[language] || categorySuggestionsMap.es,
-    [language]
-  );
+  const defaultCategory = useMemo(() => categories[0]?.code || '', [categories]);
 
   useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      categoria: prev.categoria || categorySuggestions[0] || '',
-    }));
-  }, [categorySuggestions]);
+    setForm((prev) => {
+      const hasCurrentCategory = categories.some((category) => category.code === prev.categoria);
+      return {
+        ...prev,
+        categoria: hasCurrentCategory ? prev.categoria : defaultCategory,
+      };
+    });
+  }, [categories, defaultCategory]);
 
   useEffect(() => {
     setForm((prev) => {
@@ -151,6 +150,11 @@ const JardinView = () => {
       return;
     }
 
+    if (!form.categoria) {
+      setError(t('gardenNoEventCategoriesConfigured'));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data } = await api.post('/jardin/planta', form, { headers: authHeaders });
@@ -159,7 +163,7 @@ const JardinView = () => {
         ...data.jardin,
         plantas: [data.plant, ...((prev && prev.plantas) || [])],
       }));
-      setForm(buildEmptyForm(categorySuggestions[0] || '', defaultEventType));
+      setForm(buildEmptyForm(defaultCategory, defaultEventType));
       setFormOpen(false);
     } catch (err) {
       setError(err.response?.data?.error || t('formErrorRegisterPlant'));
@@ -296,7 +300,7 @@ const JardinView = () => {
               <article key={plant.id} className="rounded-2xl bg-white/80 p-4 shadow">
                 <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
                 <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                  {plant.categoria || t('gardenNoCategory')}
+                  {getLabelForCategory(plant.categoria) || t('gardenNoCategory')}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase text-white ${badgeClass}`}
@@ -457,24 +461,44 @@ const JardinView = () => {
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="categoria">
-                  {t('gardenFormCategory')}
-                </label>
-                <input
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <label className="block text-sm font-semibold text-slate-600" htmlFor="categoria">
+                    {t('gardenFormCategory')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => refreshCategories(language)}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    disabled={categoriesLoading}
+                  >
+                    {t('gardenFormRefreshCategories')}
+                  </button>
+                </div>
+                <select
                   id="categoria"
                   name="categoria"
                   value={form.categoria}
                   onChange={handleChange}
                   className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  list="categorias-sugeridas"
-                  placeholder={t('gardenFormCategoryPlaceholder')}
+                  disabled={categoriesLoading || categories.length === 0}
                   required
-                />
-                <datalist id="categorias-sugeridas">
-                  {categorySuggestions.map((categoria) => (
-                    <option key={categoria} value={categoria} />
+                >
+                  {categories.map((category) => (
+                    <option key={category.code} value={category.code}>
+                      {category.label}
+                    </option>
                   ))}
-                </datalist>
+                </select>
+                <p className="mt-1 text-xs text-slate-500">{t('gardenFormCategoryHelper')}</p>
+                {categoriesLoading && (
+                  <p className="mt-1 text-sm text-slate-500">{t('gardenEventCategoriesLoading')}</p>
+                )}
+                {categoriesError && (
+                  <p className="mt-1 text-sm text-red-600">{categoriesError}</p>
+                )}
+                {!categoriesLoading && categories.length === 0 && !categoriesError && (
+                  <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventCategoriesConfigured')}</p>
+                )}
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="tipo">

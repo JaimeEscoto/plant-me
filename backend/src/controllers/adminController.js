@@ -7,6 +7,12 @@ const {
   updateEventTypeSchema,
   eventTypeIdParamSchema,
 } = require('../validations/eventTypeValidation');
+const {
+  SUPPORTED_LANGUAGES: CATEGORY_LANGUAGES,
+  createEventCategorySchema,
+  updateEventCategorySchema,
+  eventCategoryIdParamSchema,
+} = require('../validations/eventCategoryValidation');
 
 const normalizeNumber = (value) => Number.parseFloat(Number(value) || 0);
 
@@ -55,6 +61,45 @@ const fetchEventTypeRowById = async (eventTypeId) => {
 
   if (error) {
     throw toHttpError(error, 'No se pudo obtener la información del tipo de evento.');
+  }
+
+  return data;
+};
+
+const mapEventCategoryRow = (row) => {
+  const translations = Array.isArray(row?.event_category_translations)
+    ? row.event_category_translations
+    : [];
+  const labels = translations.reduce((acc, translation) => {
+    if (translation?.language) {
+      acc[translation.language] = translation.label || '';
+    }
+    return acc;
+  }, {});
+
+  CATEGORY_LANGUAGES.forEach((language) => {
+    if (!Object.prototype.hasOwnProperty.call(labels, language)) {
+      labels[language] = '';
+    }
+  });
+
+  return {
+    id: row.id,
+    code: row.code,
+    position: row.position,
+    labels,
+  };
+};
+
+const fetchEventCategoryRowById = async (eventCategoryId) => {
+  const { data, error } = await supabase
+    .from('event_categories')
+    .select('id, code, position, event_category_translations(language, label)')
+    .eq('id', eventCategoryId)
+    .maybeSingle();
+
+  if (error) {
+    throw toHttpError(error, 'No se pudo obtener la información de la categoría de evento.');
   }
 
   return data;
@@ -388,6 +433,230 @@ exports.grantSeeds = async (req, res, next) => {
       usuario: user,
       transferencia: transfer,
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.listEventCategories = async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('event_categories')
+      .select('id, code, position, event_category_translations(language, label)')
+      .order('position', { ascending: true })
+      .order('code', { ascending: true });
+
+    if (error) {
+      throw toHttpError(error, 'No se pudieron obtener las categorías de evento.');
+    }
+
+    const eventCategories = (data || []).map(mapEventCategoryRow);
+
+    return res.json({ eventCategories });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.createEventCategory = async (req, res, next) => {
+  try {
+    const { value, error } = createEventCategorySchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    const insertPayload = {
+      code: value.code,
+      position: value.position ?? 0,
+    };
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('event_categories')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return res.status(409).json({ error: 'Ya existe una categoría con ese código.' });
+      }
+      throw toHttpError(insertError, 'No se pudo crear la categoría de evento.');
+    }
+
+    const translationsPayload = CATEGORY_LANGUAGES.map((language) => ({
+      event_category_id: inserted.id,
+      language,
+      label: value.labels[language],
+    }));
+
+    if (translationsPayload.length > 0) {
+      const { error: translationError } = await supabase
+        .from('event_category_translations')
+        .upsert(translationsPayload, { onConflict: 'event_category_id,language' });
+
+      if (translationError) {
+        throw toHttpError(translationError, 'No se pudieron guardar las traducciones de la categoría.');
+      }
+    }
+
+    const eventCategoryRow = await fetchEventCategoryRowById(inserted.id);
+    if (!eventCategoryRow) {
+      return res.status(500).json({ error: 'No se pudo recuperar la categoría recién creada.' });
+    }
+
+    const eventCategory = mapEventCategoryRow(eventCategoryRow);
+
+    return res.status(201).json({ eventCategory });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateEventCategory = async (req, res, next) => {
+  try {
+    const { value: params, error: paramsError } = eventCategoryIdParamSchema.validate(req.params, {
+      abortEarly: false,
+    });
+    if (paramsError) {
+      paramsError.status = 400;
+      throw paramsError;
+    }
+
+    const { value, error } = updateEventCategorySchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('event_categories')
+      .select('id, code')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw toHttpError(fetchError, 'No se pudo obtener la categoría de evento.');
+    }
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Categoría de evento no encontrada.' });
+    }
+
+    if (value.code && value.code !== existing.code) {
+      const { data: duplicate, error: duplicateError } = await supabase
+        .from('event_categories')
+        .select('id')
+        .eq('code', value.code)
+        .neq('id', params.id)
+        .maybeSingle();
+
+      if (duplicateError) {
+        throw toHttpError(duplicateError, 'No se pudo validar el código de la categoría.');
+      }
+
+      if (duplicate) {
+        return res.status(409).json({ error: 'Ya existe una categoría con ese código.' });
+      }
+    }
+
+    const updatePayload = {};
+    if (value.code) updatePayload.code = value.code;
+    if (typeof value.position === 'number') updatePayload.position = value.position;
+
+    if (Object.keys(updatePayload).length > 0) {
+      const { error: updateError } = await supabase
+        .from('event_categories')
+        .update(updatePayload)
+        .eq('id', params.id);
+
+      if (updateError) {
+        throw toHttpError(updateError, 'No se pudo actualizar la categoría de evento.');
+      }
+    }
+
+    if (value.labels) {
+      const normalizedLabels = Object.keys(value.labels).reduce((acc, key) => {
+        acc[key.toLowerCase()] = value.labels[key];
+        return acc;
+      }, {});
+
+      const translationsPayload = Object.entries(normalizedLabels).map(([language, label]) => ({
+        event_category_id: params.id,
+        language,
+        label,
+      }));
+
+      if (translationsPayload.length > 0) {
+        const { error: translationError } = await supabase
+          .from('event_category_translations')
+          .upsert(translationsPayload, { onConflict: 'event_category_id,language' });
+
+        if (translationError) {
+          throw toHttpError(translationError, 'No se pudieron actualizar las traducciones de la categoría.');
+        }
+      }
+    }
+
+    const eventCategoryRow = await fetchEventCategoryRowById(params.id);
+    if (!eventCategoryRow) {
+      return res.status(404).json({ error: 'Categoría de evento no encontrada.' });
+    }
+
+    const eventCategory = mapEventCategoryRow(eventCategoryRow);
+
+    return res.json({ eventCategory });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.deleteEventCategory = async (req, res, next) => {
+  try {
+    const { value: params, error: paramsError } = eventCategoryIdParamSchema.validate(req.params, {
+      abortEarly: false,
+    });
+    if (paramsError) {
+      paramsError.status = 400;
+      throw paramsError;
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('event_categories')
+      .select('id, code')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw toHttpError(fetchError, 'No se pudo obtener la categoría de evento.');
+    }
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Categoría de evento no encontrada.' });
+    }
+
+    const { count, error: usageError } = await supabase
+      .from('plantas')
+      .select('id', { count: 'exact', head: true })
+      .eq('categoria', existing.code);
+
+    if (usageError) {
+      throw toHttpError(usageError, 'No se pudo comprobar el uso de la categoría.');
+    }
+
+    if ((count || 0) > 0) {
+      return res
+        .status(400)
+        .json({ error: 'No se puede eliminar la categoría porque está en uso.' });
+    }
+
+    const { error: deleteError } = await supabase.from('event_categories').delete().eq('id', params.id);
+
+    if (deleteError) {
+      throw toHttpError(deleteError, 'No se pudo eliminar la categoría de evento.');
+    }
+
+    return res.status(204).send();
   } catch (err) {
     return next(err);
   }

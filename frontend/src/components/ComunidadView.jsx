@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
+import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 
 const ComunidadView = () => {
@@ -39,6 +40,7 @@ const ComunidadView = () => {
   const [commentSubmittingId, setCommentSubmittingId] = useState(null);
   const [commentErrors, setCommentErrors] = useState({});
   const { getLabelForType, getEventTypeByCode } = useEventTypes();
+  const { getLabelForCategory } = useEventCategories();
 
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true);
@@ -464,7 +466,7 @@ const ComunidadView = () => {
                         <div>
                           <p className="text-base font-semibold text-gardenSoil">{plant.nombre}</p>
                           <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                            {plant.categoria}
+                            {getLabelForCategory(plant.categoria) || t('gardenNoCategory')}
                           </p>
                         </div>
                         <span

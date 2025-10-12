@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
+import { useEventCategories } from '../context/EventCategoryContext';
 
 const ranges = [
   { id: '7', labelKey: 'historyRange7', days: 7 },
@@ -13,6 +14,7 @@ const HistorialView = () => {
   const { api, authHeaders, garden, fetchGarden, setGarden } = useAuth();
   const { t, locale } = useLanguage();
   const { getLabelForType, getEventTypeByCode } = useEventTypes();
+  const { getLabelForCategory } = useEventCategories();
   const [range, setRange] = useState(ranges[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -92,7 +94,7 @@ const HistorialView = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                  {plant.categoria || t('historyNoCategory')}
+                  {getLabelForCategory(plant.categoria) || t('historyNoCategory')}
                 </p>
                 <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
               </div>
