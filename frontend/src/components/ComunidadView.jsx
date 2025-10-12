@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
+import ImagePreviewModal from './ImagePreviewModal';
 
 const ComunidadView = () => {
   const {
@@ -39,6 +40,7 @@ const ComunidadView = () => {
   const [commentDrafts, setCommentDrafts] = useState({});
   const [commentSubmittingId, setCommentSubmittingId] = useState(null);
   const [commentErrors, setCommentErrors] = useState({});
+  const [previewImage, setPreviewImage] = useState(null);
   const { getLabelForType, getEventTypeByCode } = useEventTypes();
   const { getLabelForCategory } = useEventCategories();
 
@@ -479,12 +481,23 @@ const ComunidadView = () => {
                       </div>
                       <p className="mt-2 text-sm text-slate-600">{plant.descripcion || t('communityNoDescriptionAvailable')}</p>
                       {plant.foto && (
-                        <img
-                          src={plant.foto}
-                          alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
-                          className="mt-3 h-48 w-full rounded-2xl object-cover"
-                          loading="lazy"
-                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewImage({
+                              src: plant.foto,
+                              alt: t('gardenEventPhotoAlt', { name: plant.nombre }),
+                            })
+                          }
+                          className="mt-3 block w-full overflow-hidden rounded-2xl focus:outline-none focus:ring-2 focus:ring-gardenGreen/60"
+                        >
+                          <img
+                            src={plant.foto}
+                            alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                            className="h-48 w-full object-cover transition hover:scale-[1.02]"
+                            loading="lazy"
+                          />
+                        </button>
                       )}
                       <time className="mt-2 block text-xs text-slate-500">
                         {new Date(plant.fecha_plantado).toLocaleString(locale, {
@@ -618,6 +631,12 @@ const ComunidadView = () => {
           <p className="text-sm text-slate-600">{t('communityNoFriendsProfile')}</p>
         )}
       </section>
+      <ImagePreviewModal
+        isOpen={Boolean(previewImage)}
+        src={previewImage?.src}
+        alt={previewImage?.alt || ''}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };
