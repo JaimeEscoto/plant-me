@@ -123,6 +123,46 @@ La aplicación quedará disponible en la URL indicada por Vite (por defecto `htt
 
 El código principal se encuentra en `frontend/src`.
 
+---
+
+## Frontend móvil
+
+### Requisitos previos
+
+- Flutter >= 3.0 instalado y agregado al `PATH`.
+- Un emulador Android/iOS configurado **o** un dispositivo físico con modo desarrollador.
+
+### Configuración y ejecución
+
+1. Instala las dependencias del proyecto Flutter:
+
+   ```bash
+   cd mobile
+   flutter pub get
+   ```
+
+2. (Opcional) Ajusta la URL del backend en [`lib/services/api_service.dart`](mobile/lib/services/api_service.dart) si tu API no corre en el entorno por defecto.
+
+3. Verifica que Flutter reconoce al menos un dispositivo disponible:
+
+   ```bash
+   flutter devices
+   ```
+
+4. Levanta la aplicación en el dispositivo deseado (reemplaza `DEVICE_ID` según el paso anterior o déjalo vacío para usar el primero disponible):
+
+   ```bash
+   flutter run -d DEVICE_ID
+   ```
+
+### Pruebas
+
+- Ejecuta los tests unitarios y de widgets con:
+
+  ```bash
+  flutter test
+  ```
+
 ### Sistema de economía con semillas y accesorios
 
 La aplicación incluye un sistema de economía lúdica que utiliza semillas como moneda virtual. Algunos aspectos destacados:
