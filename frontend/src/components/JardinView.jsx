@@ -14,11 +14,14 @@ const moodStyles = [
 
 const getMood = (health) => moodStyles.find((mood) => health <= mood.limit) || moodStyles[2];
 
+const MAX_PHOTO_SIZE = 2 * 1024 * 1024;
+
 const buildEmptyForm = (defaultCategory = '', defaultType = '') => ({
   nombre: '',
   categoria: defaultCategory,
   tipo: defaultType,
   descripcion: '',
+  foto: '',
 });
 
 const JardinView = () => {
@@ -46,6 +49,63 @@ const JardinView = () => {
   const [transferFeedback, setTransferFeedback] = useState(null);
   const [transferAction, setTransferAction] = useState(null);
   const gardenRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const sizeLimitLabel = useMemo(() => {
+    const value = MAX_PHOTO_SIZE / (1024 * 1024);
+    return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  }, []);
+
+  const resetPhotoInput = useCallback(() => {
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
+  }, [photoInputRef]);
+
+  const handleRemovePhoto = useCallback(() => {
+    setError(null);
+    setForm((prev) => ({ ...prev, foto: '' }));
+    resetPhotoInput();
+  }, [resetPhotoInput, setError, setForm]);
+
+  const handlePhotoChange = useCallback(
+    (event) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      setError(null);
+
+      if (!file.type.startsWith('image/')) {
+        setError(t('gardenFormPhotoInvalidType'));
+        resetPhotoInput();
+        return;
+      }
+
+      if (file.size > MAX_PHOTO_SIZE) {
+        setError(t('gardenFormPhotoSizeError', { limit: sizeLimitLabel }));
+        resetPhotoInput();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setForm((prev) => ({ ...prev, foto: reader.result }));
+          resetPhotoInput();
+        } else {
+          setError(t('gardenFormPhotoInvalidType'));
+          resetPhotoInput();
+        }
+      };
+      reader.onerror = () => {
+        setError(t('gardenFormPhotoInvalidType'));
+        resetPhotoInput();
+      };
+      reader.readAsDataURL(file);
+    },
+    [resetPhotoInput, setError, setForm, sizeLimitLabel, t]
+  );
 
   const { eventTypes, loading: eventTypesLoading, error: eventTypesError, getLabelForType, getEventTypeByCode } =
     useEventTypes();
@@ -157,13 +217,19 @@ const JardinView = () => {
 
     setSubmitting(true);
     try {
-      const { data } = await api.post('/jardin/planta', form, { headers: authHeaders });
+      const payload = { ...form };
+      if (!payload.foto) {
+        delete payload.foto;
+      }
+
+      const { data } = await api.post('/jardin/planta', payload, { headers: authHeaders });
       setGarden((prev) => ({
         ...(prev || {}),
         ...data.jardin,
         plantas: [data.plant, ...((prev && prev.plantas) || [])],
       }));
       setForm(buildEmptyForm(defaultCategory, defaultEventType));
+      resetPhotoInput();
       setFormOpen(false);
     } catch (err) {
       setError(err.response?.data?.error || t('formErrorRegisterPlant'));
@@ -271,7 +337,12 @@ const JardinView = () => {
             <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('gardenMoodDescription')}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-3 lg:justify-start">
               <button
-                onClick={() => setFormOpen(true)}
+                onClick={() => {
+                  setForm(buildEmptyForm(defaultCategory, defaultEventType));
+                  setError(null);
+                  resetPhotoInput();
+                  setFormOpen(true);
+                }}
                 className="rounded-full bg-gardenGreen px-6 py-2 font-semibold text-white shadow hover:bg-emerald-600"
               >
                 {t('gardenRecordEvent')}
@@ -308,6 +379,14 @@ const JardinView = () => {
                   {typeLabel}
                 </span>
                 <p className="mt-2 text-sm text-slate-700">{plant.descripcion || t('gardenNoDescription')}</p>
+                {plant.foto && (
+                  <img
+                    src={plant.foto}
+                    alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                    className="mt-3 h-40 w-full rounded-2xl object-cover"
+                    loading="lazy"
+                  />
+                )}
                 <time className="mt-3 block text-xs text-slate-500">
                   {new Date(plant.fecha_plantado).toLocaleString(locale, {
                     dateStyle: 'medium',
@@ -538,12 +617,49 @@ const JardinView = () => {
                   placeholder={t('gardenFormDescriptionPlaceholder')}
                 />
               </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="foto">
+                  {t('gardenFormPhotoLabel')}
+                </label>
+                <input
+                  id="foto"
+                  name="foto"
+                  type="file"
+                  accept="image/*"
+                  ref={photoInputRef}
+                  onChange={handlePhotoChange}
+                  className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm focus:border-gardenGreen focus:outline-none file:mr-4 file:rounded-full file:border-0 file:bg-gardenGreen/10 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-gardenGreen hover:file:bg-gardenGreen/20"
+                />
+                <p className="mt-1 text-xs text-slate-500">{t('gardenFormPhotoHelper', { limit: sizeLimitLabel })}</p>
+                {form.foto && (
+                  <div className="mt-3 space-y-2 rounded-2xl bg-slate-100 p-3 text-center">
+                    <img
+                      src={form.foto}
+                      alt={t('gardenEventPhotoAlt', { name: form.nombre || t('gardenFormTitle') })}
+                      className="mx-auto h-40 w-full max-w-xs rounded-2xl object-cover"
+                      loading="lazy"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    >
+                      {t('gardenFormPhotoRemove')}
+                    </button>
+                  </div>
+                )}
+              </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                  onClick={() => setFormOpen(false)}
+                  onClick={() => {
+                    setForm(buildEmptyForm(defaultCategory, defaultEventType));
+                    setError(null);
+                    resetPhotoInput();
+                    setFormOpen(false);
+                  }}
                 >
                   {t('gardenFormCancel')}
                 </button>

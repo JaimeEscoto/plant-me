@@ -121,6 +121,9 @@ exports.createPlant = async (req, res, next) => {
       return res.status(400).json({ error: 'Categoría de evento no válida.' });
     }
 
+    const photoData =
+      typeof value.foto === 'string' && value.foto.trim().length ? value.foto.trim() : null;
+
     const { data: plant, error: createError } = await supabase
       .from('plantas')
       .insert({
@@ -129,6 +132,7 @@ exports.createPlant = async (req, res, next) => {
         categoria: value.categoria,
         tipo: eventType.code,
         descripcion: value.descripcion,
+        foto: photoData,
       })
       .select()
       .single();

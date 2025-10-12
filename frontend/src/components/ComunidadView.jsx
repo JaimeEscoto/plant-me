@@ -478,6 +478,14 @@ const ComunidadView = () => {
                         </span>
                       </div>
                       <p className="mt-2 text-sm text-slate-600">{plant.descripcion || t('communityNoDescriptionAvailable')}</p>
+                      {plant.foto && (
+                        <img
+                          src={plant.foto}
+                          alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                          className="mt-3 h-48 w-full rounded-2xl object-cover"
+                          loading="lazy"
+                        />
+                      )}
                       <time className="mt-2 block text-xs text-slate-500">
                         {new Date(plant.fecha_plantado).toLocaleString(locale, {
                           dateStyle: 'medium',

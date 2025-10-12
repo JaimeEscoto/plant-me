@@ -91,12 +91,22 @@ const HistorialView = () => {
               key={plant.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
             >
-              <div>
-                <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                  {getLabelForCategory(plant.categoria) || t('historyNoCategory')}
-                </p>
-                <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                {plant.foto && (
+                  <img
+                    src={plant.foto}
+                    alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                    className="h-24 w-24 flex-shrink-0 rounded-2xl object-cover"
+                    loading="lazy"
+                  />
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
+                    {getLabelForCategory(plant.categoria) || t('historyNoCategory')}
+                  </p>
+                  <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span
