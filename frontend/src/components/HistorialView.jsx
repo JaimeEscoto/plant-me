@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
+import ImagePreviewModal from './ImagePreviewModal';
 
 const ranges = [
   { id: '7', labelKey: 'historyRange7', days: 7 },
@@ -18,6 +19,7 @@ const HistorialView = () => {
   const [range, setRange] = useState(ranges[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const queryParams = useMemo(() => {
     if (!range.days) return {};
@@ -91,12 +93,33 @@ const HistorialView = () => {
               key={plant.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
             >
-              <div>
-                <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                  {getLabelForCategory(plant.categoria) || t('historyNoCategory')}
-                </p>
-                <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                {plant.foto && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewImage({
+                        src: plant.foto,
+                        alt: t('gardenEventPhotoAlt', { name: plant.nombre }),
+                      })
+                    }
+                    className="group relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl focus:outline-none focus:ring-2 focus:ring-gardenGreen/60"
+                  >
+                    <img
+                      src={plant.foto}
+                      alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                      className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+                      loading="lazy"
+                    />
+                  </button>
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold text-gardenSoil">{plant.nombre}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
+                    {getLabelForCategory(plant.categoria) || t('historyNoCategory')}
+                  </p>
+                  <p className="text-sm text-slate-600">{plant.descripcion || t('historyNoDescription')}</p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span
@@ -123,6 +146,12 @@ const HistorialView = () => {
           <p className="text-sm text-slate-600">{t('historyEmptyRange')}</p>
         )}
       </div>
+      <ImagePreviewModal
+        isOpen={Boolean(previewImage)}
+        src={previewImage?.src}
+        alt={previewImage?.alt || ''}
+        onClose={() => setPreviewImage(null)}
+      />
     </section>
   );
 };

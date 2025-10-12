@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
+import ImagePreviewModal from './ImagePreviewModal';
 
 const moodStyles = [
   { limit: 33, bg: 'from-red-100 via-orange-100 to-yellow-100', messageKey: 'gardenMoodNeedsCare' },
@@ -14,11 +15,14 @@ const moodStyles = [
 
 const getMood = (health) => moodStyles.find((mood) => health <= mood.limit) || moodStyles[2];
 
+const MAX_PHOTO_SIZE = 2 * 1024 * 1024;
+
 const buildEmptyForm = (defaultCategory = '', defaultType = '') => ({
   nombre: '',
   categoria: defaultCategory,
   tipo: defaultType,
   descripcion: '',
+  foto: '',
 });
 
 const JardinView = () => {
@@ -45,7 +49,65 @@ const JardinView = () => {
   const [transferError, setTransferError] = useState(null);
   const [transferFeedback, setTransferFeedback] = useState(null);
   const [transferAction, setTransferAction] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const gardenRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const sizeLimitLabel = useMemo(() => {
+    const value = MAX_PHOTO_SIZE / (1024 * 1024);
+    return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  }, []);
+
+  const resetPhotoInput = useCallback(() => {
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
+  }, [photoInputRef]);
+
+  const handleRemovePhoto = useCallback(() => {
+    setError(null);
+    setForm((prev) => ({ ...prev, foto: '' }));
+    resetPhotoInput();
+  }, [resetPhotoInput, setError, setForm]);
+
+  const handlePhotoChange = useCallback(
+    (event) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      setError(null);
+
+      if (!file.type.startsWith('image/')) {
+        setError(t('gardenFormPhotoInvalidType'));
+        resetPhotoInput();
+        return;
+      }
+
+      if (file.size > MAX_PHOTO_SIZE) {
+        setError(t('gardenFormPhotoSizeError', { limit: sizeLimitLabel }));
+        resetPhotoInput();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setForm((prev) => ({ ...prev, foto: reader.result }));
+          resetPhotoInput();
+        } else {
+          setError(t('gardenFormPhotoInvalidType'));
+          resetPhotoInput();
+        }
+      };
+      reader.onerror = () => {
+        setError(t('gardenFormPhotoInvalidType'));
+        resetPhotoInput();
+      };
+      reader.readAsDataURL(file);
+    },
+    [resetPhotoInput, setError, setForm, sizeLimitLabel, t]
+  );
 
   const { eventTypes, loading: eventTypesLoading, error: eventTypesError, getLabelForType, getEventTypeByCode } =
     useEventTypes();
@@ -157,13 +219,19 @@ const JardinView = () => {
 
     setSubmitting(true);
     try {
-      const { data } = await api.post('/jardin/planta', form, { headers: authHeaders });
+      const payload = { ...form };
+      if (!payload.foto) {
+        delete payload.foto;
+      }
+
+      const { data } = await api.post('/jardin/planta', payload, { headers: authHeaders });
       setGarden((prev) => ({
         ...(prev || {}),
         ...data.jardin,
         plantas: [data.plant, ...((prev && prev.plantas) || [])],
       }));
       setForm(buildEmptyForm(defaultCategory, defaultEventType));
+      resetPhotoInput();
       setFormOpen(false);
     } catch (err) {
       setError(err.response?.data?.error || t('formErrorRegisterPlant'));
@@ -271,7 +339,12 @@ const JardinView = () => {
             <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('gardenMoodDescription')}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-3 lg:justify-start">
               <button
-                onClick={() => setFormOpen(true)}
+                onClick={() => {
+                  setForm(buildEmptyForm(defaultCategory, defaultEventType));
+                  setError(null);
+                  resetPhotoInput();
+                  setFormOpen(true);
+                }}
                 className="rounded-full bg-gardenGreen px-6 py-2 font-semibold text-white shadow hover:bg-emerald-600"
               >
                 {t('gardenRecordEvent')}
@@ -308,6 +381,25 @@ const JardinView = () => {
                   {typeLabel}
                 </span>
                 <p className="mt-2 text-sm text-slate-700">{plant.descripcion || t('gardenNoDescription')}</p>
+                {plant.foto && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewImage({
+                        src: plant.foto,
+                        alt: t('gardenEventPhotoAlt', { name: plant.nombre }),
+                      })
+                    }
+                    className="mt-3 block w-full overflow-hidden rounded-2xl focus:outline-none focus:ring-2 focus:ring-gardenGreen/60"
+                  >
+                    <img
+                      src={plant.foto}
+                      alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                      className="h-40 w-full object-cover transition hover:scale-[1.02]"
+                      loading="lazy"
+                    />
+                  </button>
+                )}
                 <time className="mt-3 block text-xs text-slate-500">
                   {new Date(plant.fecha_plantado).toLocaleString(locale, {
                     dateStyle: 'medium',
@@ -442,162 +534,209 @@ const JardinView = () => {
       </section>
 
       {formOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-gardenGreen">{t('gardenFormTitle')}</h3>
-            <p className="mt-2 text-sm text-slate-600">{t('gardenFormDescription')}</p>
-            <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="nombre">
-                  {t('gardenFormName')}
-                </label>
-                <input
-                  id="nombre"
-                  name="nombre"
-                  value={form.nombre}
-                  onChange={handleChange}
-                  className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <label className="block text-sm font-semibold text-slate-600" htmlFor="categoria">
-                    {t('gardenFormCategory')}
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
+              <h3 className="text-xl font-bold text-gardenGreen">{t('gardenFormTitle')}</h3>
+              <p className="mt-2 text-sm text-slate-600">{t('gardenFormDescription')}</p>
+              <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="nombre">
+                    {t('gardenFormName')}
                   </label>
+                  <input
+                    id="nombre"
+                    name="nombre"
+                    value={form.nombre}
+                    onChange={handleChange}
+                    className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-semibold text-slate-600" htmlFor="categoria">
+                      {t('gardenFormCategory')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => refreshCategories(language)}
+                      className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      disabled={categoriesLoading}
+                    >
+                      {t('gardenFormRefreshCategories')}
+                    </button>
+                  </div>
+                  <select
+                    id="categoria"
+                    name="categoria"
+                    value={form.categoria}
+                    onChange={handleChange}
+                    className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    disabled={categoriesLoading || categories.length === 0}
+                    required
+                  >
+                    {categories.map((category) => (
+                      <option key={category.code} value={category.code}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">{t('gardenFormCategoryHelper')}</p>
+                  {categoriesLoading && (
+                    <p className="mt-1 text-sm text-slate-500">{t('gardenEventCategoriesLoading')}</p>
+                  )}
+                  {categoriesError && (
+                    <p className="mt-1 text-sm text-red-600">{categoriesError}</p>
+                  )}
+                  {!categoriesLoading && categories.length === 0 && !categoriesError && (
+                    <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventCategoriesConfigured')}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="tipo">
+                    {t('gardenFormType')}
+                  </label>
+                  <select
+                    id="tipo"
+                    name="tipo"
+                    value={form.tipo}
+                    onChange={handleChange}
+                    className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    disabled={eventTypesLoading || eventTypes.length === 0}
+                  >
+                    {eventTypes.map((eventType) => (
+                      <option key={eventType.code} value={eventType.code}>
+                        {eventType.label}
+                      </option>
+                    ))}
+                  </select>
+                  {eventTypesError && (
+                    <p className="mt-1 text-sm text-red-600">{eventTypesError}</p>
+                  )}
+                  {!eventTypesLoading && eventTypes.length === 0 && !eventTypesError && (
+                    <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventTypesConfigured')}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="descripcion">
+                    {t('gardenFormDescriptionLabel')}
+                  </label>
+                  <textarea
+                    id="descripcion"
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    className="h-24 w-full rounded-2xl border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    placeholder={t('gardenFormDescriptionPlaceholder')}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="foto">
+                    {t('gardenFormPhotoLabel')}
+                  </label>
+                <input
+                  id="foto"
+                  name="foto"
+                  type="file"
+                  accept="image/*"
+                  ref={photoInputRef}
+                  onChange={handlePhotoChange}
+                  className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm focus:border-gardenGreen focus:outline-none file:mr-4 file:rounded-full file:border-0 file:bg-gardenGreen/10 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-gardenGreen hover:file:bg-gardenGreen/20"
+                />
+                <p className="mt-1 text-xs text-slate-500">{t('gardenFormPhotoHelper', { limit: sizeLimitLabel })}</p>
+                {form.foto && (
+                  <div className="mt-3 space-y-2 rounded-2xl bg-slate-100 p-3 text-center">
+                    <img
+                      src={form.foto}
+                      alt={t('gardenEventPhotoAlt', { name: form.nombre || t('gardenFormTitle') })}
+                      className="mx-auto h-40 w-full max-w-xs rounded-2xl object-cover"
+                      loading="lazy"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    >
+                      {t('gardenFormPhotoRemove')}
+                    </button>
+                  </div>
+                )}
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <div className="flex justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => refreshCategories(language)}
-                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                    disabled={categoriesLoading}
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    onClick={() => {
+                      setForm(buildEmptyForm(defaultCategory, defaultEventType));
+                      setError(null);
+                      resetPhotoInput();
+                      setFormOpen(false);
+                    }}
                   >
-                    {t('gardenFormRefreshCategories')}
+                    {t('gardenFormCancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+                    disabled={submitting || eventTypes.length === 0}
+                  >
+                    {submitting ? t('gardenFormSaving') : t('gardenFormSave')}
                   </button>
                 </div>
-                <select
-                  id="categoria"
-                  name="categoria"
-                  value={form.categoria}
-                  onChange={handleChange}
-                  className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  disabled={categoriesLoading || categories.length === 0}
-                  required
-                >
-                  {categories.map((category) => (
-                    <option key={category.code} value={category.code}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">{t('gardenFormCategoryHelper')}</p>
-                {categoriesLoading && (
-                  <p className="mt-1 text-sm text-slate-500">{t('gardenEventCategoriesLoading')}</p>
-                )}
-                {categoriesError && (
-                  <p className="mt-1 text-sm text-red-600">{categoriesError}</p>
-                )}
-                {!categoriesLoading && categories.length === 0 && !categoriesError && (
-                  <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventCategoriesConfigured')}</p>
-                )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="tipo">
-                  {t('gardenFormType')}
-                </label>
-                <select
-                  id="tipo"
-                  name="tipo"
-                  value={form.tipo}
-                  onChange={handleChange}
-                  className="w-full rounded-full border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  disabled={eventTypesLoading || eventTypes.length === 0}
-                >
-                  {eventTypes.map((eventType) => (
-                    <option key={eventType.code} value={eventType.code}>
-                      {eventType.label}
-                    </option>
-                  ))}
-                </select>
-                {eventTypesError && (
-                  <p className="mt-1 text-sm text-red-600">{eventTypesError}</p>
-                )}
-                {!eventTypesLoading && eventTypes.length === 0 && !eventTypesError && (
-                  <p className="mt-1 text-sm text-amber-600">{t('gardenNoEventTypesConfigured')}</p>
-                )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="descripcion">
-                  {t('gardenFormDescriptionLabel')}
-                </label>
-                <textarea
-                  id="descripcion"
-                  name="descripcion"
-                  value={form.descripcion}
-                  onChange={handleChange}
-                  className="h-24 w-full rounded-2xl border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  placeholder={t('gardenFormDescriptionPlaceholder')}
-                />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                  onClick={() => setFormOpen(false)}
-                >
-                  {t('gardenFormCancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-                  disabled={submitting || eventTypes.length === 0}
-                >
-                  {submitting ? t('gardenFormSaving') : t('gardenFormSave')}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
       {editingPlant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-gardenGreen">{t('gardenEditTitle')}</h3>
-            <form className="mt-4 space-y-4" onSubmit={handleUpdate}>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="descripcionEditar">
-                  {t('gardenFormDescriptionLabel')}
-                </label>
-                <textarea
-                  id="descripcionEditar"
-                  value={editDescription}
-                  onChange={(event) => setEditDescription(event.target.value)}
-                  className="h-32 w-full rounded-2xl border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
-                  required
-                />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                  onClick={() => setEditingPlant(null)}
-                >
-                  {t('gardenEditCancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-                  disabled={submitting}
-                >
-                  {submitting ? t('gardenFormSaving') : t('gardenEditUpdate')}
-                </button>
-              </div>
-            </form>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
+              <h3 className="text-xl font-bold text-gardenGreen">{t('gardenEditTitle')}</h3>
+              <form className="mt-4 space-y-4" onSubmit={handleUpdate}>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-600" htmlFor="descripcionEditar">
+                    {t('gardenFormDescriptionLabel')}
+                  </label>
+                  <textarea
+                    id="descripcionEditar"
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    className="h-32 w-full rounded-2xl border border-slate-200 px-4 py-2 focus:border-gardenGreen focus:outline-none"
+                    required
+                  />
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    onClick={() => setEditingPlant(null)}
+                  >
+                    {t('gardenEditCancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-gardenGreen px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+                    disabled={submitting}
+                  >
+                    {submitting ? t('gardenFormSaving') : t('gardenEditUpdate')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
+      <ImagePreviewModal
+        isOpen={Boolean(previewImage)}
+        src={previewImage?.src}
+        alt={previewImage?.alt || ''}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

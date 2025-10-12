@@ -47,7 +47,7 @@ const fetchFriendsSummaries = async (friendEntries) => {
     supabase
       .from('jardines')
       .select(
-        'id, usuario_id, estado_salud, ultima_modificacion, plantas (id, nombre, tipo, fecha_plantado, descripcion)'
+        'id, usuario_id, estado_salud, ultima_modificacion, plantas (id, nombre, tipo, fecha_plantado, descripcion, foto)'
       )
       .in('usuario_id', friendIds)
       .order('fecha_plantado', { referencedTable: 'plantas', ascending: false })
@@ -101,7 +101,7 @@ const fetchUserProfile = async (userId, currentUserId) => {
     supabase
       .from('jardines')
       .select(
-        'id, usuario_id, estado_salud, ultima_modificacion, plantas (id, nombre, categoria, tipo, fecha_plantado, descripcion)'
+        'id, usuario_id, estado_salud, ultima_modificacion, plantas (id, nombre, categoria, tipo, fecha_plantado, descripcion, foto)'
       )
       .eq('usuario_id', userId)
       .order('fecha_plantado', { referencedTable: 'plantas', ascending: false })
