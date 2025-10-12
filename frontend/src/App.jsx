@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { EventTypeProvider } from './context/EventTypeContext';
+import { EventCategoryProvider } from './context/EventCategoryContext';
 import Auth from './components/Auth';
 import JardinView from './components/JardinView';
 import ShopView from './components/ShopView';
@@ -117,7 +118,9 @@ const AppWithProvider = () => (
   <LanguageProvider>
     <AuthProvider>
       <EventTypeProvider>
-        <App />
+        <EventCategoryProvider>
+          <App />
+        </EventCategoryProvider>
       </EventTypeProvider>
     </AuthProvider>
   </LanguageProvider>

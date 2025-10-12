@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 exports.createPlantSchema = Joi.object({
   nombre: Joi.string().trim().min(2).max(60).required(),
-  categoria: Joi.string().trim().min(2).max(40).required(),
+  categoria: Joi.string().trim().lowercase().pattern(/^[a-z0-9_-]+$/).min(2).max(60).required(),
   tipo: Joi.string().trim().min(2).max(60).required(),
   descripcion: Joi.string().trim().max(500).allow('', null),
 });

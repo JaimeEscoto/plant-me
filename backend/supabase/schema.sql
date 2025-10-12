@@ -77,6 +77,21 @@ create table if not exists public.event_type_translations (
   constraint event_type_translations_unique unique (event_type_id, language)
 );
 
+create table if not exists public.event_categories (
+  id uuid primary key default uuid_generate_v4(),
+  code text not null unique,
+  position integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.event_category_translations (
+  id uuid primary key default uuid_generate_v4(),
+  event_category_id uuid not null references public.event_categories(id) on delete cascade,
+  language text not null,
+  label text not null,
+  constraint event_category_translations_unique unique (event_category_id, language)
+);
+
 create table if not exists public.plantas (
   id uuid primary key default uuid_generate_v4(),
   jardin_id uuid not null references public.jardines(id) on delete cascade,
@@ -91,6 +106,10 @@ alter table if exists public.plantas drop constraint if exists plantas_tipo_chec
 alter table if exists public.plantas drop constraint if exists plantas_tipo_fkey;
 alter table if exists public.plantas
   add constraint plantas_tipo_fkey foreign key (tipo) references public.event_types(code) on update cascade;
+
+alter table if exists public.plantas drop constraint if exists plantas_categoria_fkey;
+alter table if exists public.plantas
+  add constraint plantas_categoria_fkey foreign key (categoria) references public.event_categories(code) on update cascade;
 
 create index if not exists plantas_jardin_id_idx on public.plantas (jardin_id);
 create index if not exists plantas_jardin_fecha_idx on public.plantas (jardin_id, fecha_plantado desc);
@@ -200,13 +219,57 @@ join (
 ) as v(code, language, label) on v.code = et.code
 on conflict (event_type_id, language) do update set label = excluded.label;
 
+insert into public.event_categories (code, position)
+values
+  ('work', 0),
+  ('relationships', 1),
+  ('self-care', 2),
+  ('health', 3),
+  ('learning', 4),
+  ('other', 5)
+on conflict (code) do update
+set
+  position = excluded.position;
+
+insert into public.event_category_translations (event_category_id, language, label)
+select ec.id, v.language, v.label
+from public.event_categories ec
+join (
+  values
+    ('work', 'es', 'Trabajo'),
+    ('work', 'en', 'Work'),
+    ('work', 'fr', 'Travail'),
+    ('work', 'ar', 'العمل'),
+    ('relationships', 'es', 'Relaciones'),
+    ('relationships', 'en', 'Relationships'),
+    ('relationships', 'fr', 'Relations'),
+    ('relationships', 'ar', 'العلاقات'),
+    ('self-care', 'es', 'Autocuidado'),
+    ('self-care', 'en', 'Self-care'),
+    ('self-care', 'fr', 'Auto-soin'),
+    ('self-care', 'ar', 'العناية الذاتية'),
+    ('health', 'es', 'Salud'),
+    ('health', 'en', 'Health'),
+    ('health', 'fr', 'Santé'),
+    ('health', 'ar', 'الصحة'),
+    ('learning', 'es', 'Aprendizaje'),
+    ('learning', 'en', 'Learning'),
+    ('learning', 'fr', 'Apprentissage'),
+    ('learning', 'ar', 'التعلم'),
+    ('other', 'es', 'Otro'),
+    ('other', 'en', 'Other'),
+    ('other', 'fr', 'Autre'),
+    ('other', 'ar', 'أخرى')
+) as v(code, language, label) on v.code = ec.code
+on conflict (event_category_id, language) do update set label = excluded.label;
+
 insert into public.plantas (id, jardin_id, nombre, categoria, tipo, fecha_plantado, descripcion)
 values
   (
     '519440fa-b80b-458a-a453-4c7f3d0698e9',
     'ee6d89ea-b79f-4268-8f95-0debf9818eb3',
     'Camino al trabajo sin tráfico',
-    'Trabajo',
+    'work',
     'positivo',
     timezone('utc', now()) - interval '5 days',
     'La mañana fluyó con tranquilidad y llegué puntual a la oficina.'
@@ -215,7 +278,7 @@ values
     '9819c548-9a76-4694-92b7-d5d2c824e0f7',
     'ee6d89ea-b79f-4268-8f95-0debf9818eb3',
     'Discusión con un colega',
-    'Relaciones',
+    'relationships',
     'negativo',
     timezone('utc', now()) - interval '3 days',
     'Una conversación incómoda que me dejó con cierta tensión el resto del día.'
@@ -224,7 +287,7 @@ values
     '09f0b641-156a-4d24-bf23-9d16169c8439',
     'ee6d89ea-b79f-4268-8f95-0debf9818eb3',
     'Sesión de meditación guiada',
-    'Autocuidado',
+    'self-care',
     'positivo',
     timezone('utc', now()) - interval '1 days',
     'Tomé 20 minutos para respirar con calma y recargar energías.'

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
+import { useEventCategories } from '../context/EventCategoryContext';
 
 const SummaryCard = ({ title, value, helper }) => (
   <div className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
@@ -63,6 +64,7 @@ const AdminDashboard = () => {
   const { getAdminDashboard } = useAuth();
   const { t, locale } = useLanguage();
   const { getLabelForType } = useEventTypes();
+  const { getLabelForCategory } = useEventCategories();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -271,7 +273,9 @@ const AdminDashboard = () => {
                     {dateTimeFormatter.format(new Date(event.fecha_plantado))}
                   </p>
                   {event.categoria ? (
-                    <p className="mt-1 text-xs text-slate-500">{event.categoria}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {getLabelForCategory(event.categoria)}
+                    </p>
                   ) : null}
                 </li>
               );

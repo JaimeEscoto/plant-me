@@ -7,6 +7,7 @@ router.use(authMiddleware);
 
 router.get('/', gardenController.getGarden);
 router.get('/tipos-evento', gardenController.getEventTypes);
+router.get('/categorias-evento', gardenController.getEventCategories);
 router.post('/planta', gardenController.createPlant);
 router.get('/historial', gardenController.getHistory);
 router.put('/planta/:id', gardenController.updatePlant);
