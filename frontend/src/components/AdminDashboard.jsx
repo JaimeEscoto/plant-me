@@ -763,7 +763,7 @@ const AdminDashboard = () => {
       remitente: fromName,
       destinatario: toName,
       cantidad: `${numberFormatter.format(transfer.cantidad || 0)} 🌱`,
-      estadoLabel,
+      estadoLabel: statusLabel,
     };
   });
 
