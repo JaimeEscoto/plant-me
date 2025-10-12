@@ -113,11 +113,16 @@ exports.getDashboard = async (req, res, next) => {
       { data: plants, error: plantsError },
       { data: seedTransfers, error: seedTransfersError },
       { data: accessoryTransfers, error: accessoryTransfersError },
+      { data: userAccessories, error: userAccessoriesError },
+      { data: friendships, error: friendshipsError },
+      { data: plantComments, error: plantCommentsError },
+      { data: commentLikes, error: commentLikesError },
+      { data: plantLikes, error: plantLikesError },
     ] = await Promise.all([
       supabase
         .from('usuarios')
         .select('id, nombre_usuario, semillas, rol, fecha_creacion'),
-      supabase.from('jardines').select('id, usuario_id, estado_salud'),
+      supabase.from('jardines').select('id, usuario_id, estado_salud, ultima_modificacion'),
       supabase
         .from('plantas')
         .select('id, jardin_id, nombre, categoria, tipo, fecha_plantado')
@@ -134,6 +139,19 @@ exports.getDashboard = async (req, res, next) => {
         .select('id, remitente_id, destinatario_id, accesorio_id, cantidad, estado, fecha_creacion')
         .order('fecha_creacion', { ascending: false })
         .limit(50),
+      supabase
+        .from('usuario_accesorios')
+        .select('usuario_id, cantidad'),
+      supabase.from('amistades').select('usuario_a, usuario_b'),
+      supabase
+        .from('plantas_comentarios')
+        .select('usuario_id, fecha_creacion'),
+      supabase
+        .from('comentarios_likes')
+        .select('usuario_id, fecha_creacion'),
+      supabase
+        .from('plantas_likes')
+        .select('usuario_id, fecha_creacion'),
     ]);
 
     if (usersError) {
@@ -156,6 +174,26 @@ exports.getDashboard = async (req, res, next) => {
       throw toHttpError(accessoryTransfersError, 'No se pudieron obtener las transferencias de accesorios.');
     }
 
+    if (userAccessoriesError) {
+      throw toHttpError(userAccessoriesError, 'No se pudo obtener la información de accesorios por usuario.');
+    }
+
+    if (friendshipsError) {
+      throw toHttpError(friendshipsError, 'No se pudo obtener la información de amistades.');
+    }
+
+    if (plantCommentsError) {
+      throw toHttpError(plantCommentsError, 'No se pudieron obtener los comentarios de plantas.');
+    }
+
+    if (commentLikesError) {
+      throw toHttpError(commentLikesError, 'No se pudieron obtener los likes de comentarios.');
+    }
+
+    if (plantLikesError) {
+      throw toHttpError(plantLikesError, 'No se pudieron obtener los likes de plantas.');
+    }
+
     const usersList = users || [];
     const usersById = new Map(usersList.map((user) => [user.id, user]));
 
@@ -174,6 +212,8 @@ exports.getDashboard = async (req, res, next) => {
 
     const eventosPorTipoMap = new Map();
     const eventosPorUsuarioMap = new Map();
+    const eventosPorCategoriaMap = new Map();
+    const firstPlantByUser = new Map();
 
     plantsList.forEach((plant) => {
       const tipo = plant.tipo || 'desconocido';
@@ -183,7 +223,18 @@ exports.getDashboard = async (req, res, next) => {
       if (garden?.usuario_id) {
         const current = eventosPorUsuarioMap.get(garden.usuario_id) || { total: 0 };
         eventosPorUsuarioMap.set(garden.usuario_id, { total: current.total + 1 });
+
+        const existingDate = firstPlantByUser.get(garden.usuario_id);
+        const plantDate = plant.fecha_plantado ? new Date(plant.fecha_plantado) : null;
+        if (plantDate && !Number.isNaN(plantDate.getTime())) {
+          if (!existingDate || plantDate < existingDate) {
+            firstPlantByUser.set(garden.usuario_id, plantDate);
+          }
+        }
       }
+
+      const categoria = plant.categoria || 'sin_categoria';
+      eventosPorCategoriaMap.set(categoria, (eventosPorCategoriaMap.get(categoria) || 0) + 1);
     });
 
     const eventosPorTipo = Array.from(eventosPorTipoMap.entries())
@@ -191,6 +242,11 @@ exports.getDashboard = async (req, res, next) => {
       .sort((a, b) => b.cantidad - a.cantidad);
 
     const usuariosEventosDestacados = buildTopList(eventosPorUsuarioMap, usersById, 5);
+    const usuariosEventosTabla = buildTopList(eventosPorUsuarioMap, usersById, 20);
+
+    const eventosPorCategoria = Array.from(eventosPorCategoriaMap.entries())
+      .map(([categoria, cantidad]) => ({ categoria, cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad);
 
     const acceptedSeedTransfers = (seedTransfers || []).filter((transfer) => transfer.estado === 'aceptado');
 
@@ -283,6 +339,179 @@ exports.getDashboard = async (req, res, next) => {
         };
       });
 
+    const accessoriesWithQuantity = new Set(
+      (userAccessories || [])
+        .filter((row) => normalizeNumber(row.cantidad) > 0 && row.usuario_id)
+        .map((row) => row.usuario_id)
+    );
+
+    const transferSendersSet = new Set(acceptedSeedTransfers.map((transfer) => transfer.remitente_id));
+    const transferRecipientsSet = new Set(acceptedSeedTransfers.map((transfer) => transfer.destinatario_id));
+
+    const scatterNow = Date.now();
+    const msInDay = 1000 * 60 * 60 * 24;
+    const semillasDistribucion = usersList.map((user) => {
+      const creationDate = user.fecha_creacion ? new Date(user.fecha_creacion) : null;
+      const ageDays = creationDate && !Number.isNaN(creationDate.getTime())
+        ? (scatterNow - creationDate.getTime()) / msInDay
+        : 0;
+
+      return {
+        id: user.id,
+        nombre_usuario: user.nombre_usuario,
+        rol: user.rol || 'usuario',
+        semillas: normalizeNumber(user.semillas),
+        fecha_creacion: user.fecha_creacion,
+        antiguedad_dias: Number.parseFloat(ageDays.toFixed(2)),
+      };
+    });
+
+    const communityActivityMap = new Map();
+    const ensureActivityEntry = (userId) => {
+      if (!userId) return null;
+      if (!communityActivityMap.has(userId)) {
+        communityActivityMap.set(userId, {
+          comentarios: 0,
+          likesComentarios: 0,
+          likesPlantas: 0,
+          ultimaActividad: null,
+        });
+      }
+      return communityActivityMap.get(userId);
+    };
+
+    (plantComments || []).forEach((comment) => {
+      const entry = ensureActivityEntry(comment.usuario_id);
+      if (!entry) return;
+      entry.comentarios += 1;
+      const commentDate = comment.fecha_creacion ? new Date(comment.fecha_creacion) : null;
+      if (commentDate && !Number.isNaN(commentDate.getTime())) {
+        if (!entry.ultimaActividad || commentDate > entry.ultimaActividad) {
+          entry.ultimaActividad = commentDate;
+        }
+      }
+    });
+
+    (commentLikes || []).forEach((like) => {
+      const entry = ensureActivityEntry(like.usuario_id);
+      if (!entry) return;
+      entry.likesComentarios += 1;
+      const likeDate = like.fecha_creacion ? new Date(like.fecha_creacion) : null;
+      if (likeDate && !Number.isNaN(likeDate.getTime())) {
+        if (!entry.ultimaActividad || likeDate > entry.ultimaActividad) {
+          entry.ultimaActividad = likeDate;
+        }
+      }
+    });
+
+    (plantLikes || []).forEach((like) => {
+      const entry = ensureActivityEntry(like.usuario_id);
+      if (!entry) return;
+      entry.likesPlantas += 1;
+      const likeDate = like.fecha_creacion ? new Date(like.fecha_creacion) : null;
+      if (likeDate && !Number.isNaN(likeDate.getTime())) {
+        if (!entry.ultimaActividad || likeDate > entry.ultimaActividad) {
+          entry.ultimaActividad = likeDate;
+        }
+      }
+    });
+
+    const actividadComunidad = Array.from(communityActivityMap.entries())
+      .map(([userId, info]) => {
+        const user = usersById.get(userId);
+        if (!user) {
+          return null;
+        }
+
+        const totalInteracciones = info.comentarios + info.likesComentarios + info.likesPlantas;
+        const rolTransferencia = transferSendersSet.has(userId) && transferRecipientsSet.has(userId)
+          ? 'mixto'
+          : transferSendersSet.has(userId)
+            ? 'remitente'
+            : transferRecipientsSet.has(userId)
+              ? 'destinatario'
+              : 'sin_movimientos';
+
+        return {
+          id: userId,
+          nombre_usuario: user.nombre_usuario,
+          rol: user.rol || 'usuario',
+          comentarios: info.comentarios,
+          likes: info.likesComentarios + info.likesPlantas,
+          totalInteracciones,
+          rol_transferencias: rolTransferencia,
+          ultimaActividad: info.ultimaActividad ? info.ultimaActividad.toISOString() : null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.totalInteracciones - a.totalInteracciones)
+      .slice(0, 30);
+
+    const friendCountMap = new Map();
+    (friendships || []).forEach((friendship) => {
+      if (!friendship?.usuario_a || !friendship?.usuario_b) return;
+
+      const currentA = friendCountMap.get(friendship.usuario_a) || { total: 0 };
+      currentA.total += 1;
+      friendCountMap.set(friendship.usuario_a, currentA);
+
+      const currentB = friendCountMap.get(friendship.usuario_b) || { total: 0 };
+      currentB.total += 1;
+      friendCountMap.set(friendship.usuario_b, currentB);
+    });
+
+    const usuariosMasAmigos = buildTopList(friendCountMap, usersById, 10);
+
+    const healthTimelineMap = new Map();
+    gardensList.forEach((garden) => {
+      const referenceDate = garden.ultima_modificacion ? new Date(garden.ultima_modificacion) : null;
+      if (!referenceDate || Number.isNaN(referenceDate.getTime())) {
+        return;
+      }
+
+      const key = referenceDate.toISOString().slice(0, 10);
+      const entry = healthTimelineMap.get(key) || { total: 0, count: 0, date: referenceDate };
+      entry.total += normalizeNumber(garden.estado_salud);
+      entry.count += 1;
+      if (!entry.date || referenceDate > entry.date) {
+        entry.date = referenceDate;
+      }
+      healthTimelineMap.set(key, entry);
+    });
+
+    const saludPromedioTemporal = Array.from(healthTimelineMap.entries())
+      .map(([key, info]) => ({
+        fecha: key,
+        promedio: Number.parseFloat((info.total / (info.count || 1)).toFixed(2)),
+      }))
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+    const funnelEmbudo = [
+      { etapa: 'registrados', total: totalUsuarios },
+      { etapa: 'con_jardin', total: gardensList.length },
+      { etapa: 'con_planta', total: firstPlantByUser.size },
+    ];
+
+    const promedioDiasPrimeraPlanta = firstPlantByUser.size
+      ? Number.parseFloat(
+          (
+            Array.from(firstPlantByUser.entries()).reduce((acc, [userId, firstPlantDate]) => {
+              const user = usersById.get(userId);
+              if (!user?.fecha_creacion) {
+                return acc;
+              }
+              const createdAt = new Date(user.fecha_creacion);
+              if (Number.isNaN(createdAt.getTime())) {
+                return acc;
+              }
+
+              const diffDays = Math.max(0, (firstPlantDate.getTime() - createdAt.getTime()) / msInDay);
+              return acc + diffDays;
+            }, 0) / firstPlantByUser.size
+          ).toFixed(2)
+        )
+      : null;
+
     return res.json({
       resumen: {
         totalUsuarios,
@@ -300,9 +529,28 @@ exports.getDashboard = async (req, res, next) => {
       },
       eventos: {
         porTipo: eventosPorTipo,
+        porCategoria: eventosPorCategoria,
         usuariosDestacados: usuariosEventosDestacados,
+        usuariosDestacadosTabla: usuariosEventosTabla,
         recientes: eventosRecientes,
         accesoriosDestacados: usuariosDestacadosAccesorios,
+      },
+      salud: {
+        promedioTemporal: saludPromedioTemporal,
+      },
+      usuarios: {
+        distribucionSemillas: semillasDistribucion,
+        actividadComunidad: actividadComunidad,
+        accesorios: {
+          totalUsuarios,
+          totalUsuariosConAccesorios: accessoriesWithQuantity.size,
+          porcentajeUsuariosConAccesorios: totalUsuarios
+            ? Number.parseFloat(((accessoriesWithQuantity.size / totalUsuarios) * 100).toFixed(2))
+            : 0,
+        },
+        topAmigos: usuariosMasAmigos,
+        embudo: funnelEmbudo,
+        promedioDiasPrimeraPlanta,
       },
     });
   } catch (err) {
