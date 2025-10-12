@@ -44,6 +44,46 @@ const ComunidadView = () => {
   const { getLabelForType, getEventTypeByCode } = useEventTypes();
   const { getLabelForCategory } = useEventCategories();
 
+  useEffect(() => {
+    if (!previewImage?.plantId || !profile?.jardin?.plantas) {
+      return;
+    }
+
+    const matchingPlant = profile.jardin.plantas.find((plant) => plant.id === previewImage.plantId);
+
+    if (!matchingPlant) {
+      setPreviewImage(null);
+      return;
+    }
+
+    const nextLikes = {
+      total: matchingPlant.likes?.total ?? 0,
+      likedByMe: Boolean(matchingPlant.likes?.likedByMe),
+    };
+    const nextSrc = matchingPlant.foto || previewImage.src;
+
+    setPreviewImage((prev) => {
+      if (!prev || prev.plantId !== matchingPlant.id) {
+        return prev;
+      }
+
+      const likesChanged =
+        (prev.likes?.total ?? 0) !== nextLikes.total ||
+        Boolean(prev.likes?.likedByMe) !== nextLikes.likedByMe;
+      const srcChanged = nextSrc !== prev.src;
+
+      if (!likesChanged && !srcChanged) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        src: nextSrc,
+        likes: nextLikes,
+      };
+    });
+  }, [profile, previewImage?.plantId]);
+
   const loadFriends = useCallback(async () => {
     setFriendsLoading(true);
     setFriendsError(null);
@@ -172,6 +212,15 @@ const ComunidadView = () => {
           );
           return { ...prev, jardin: { ...prev.jardin, plantas: updatedPlants } };
         });
+        setPreviewImage((prev) => {
+          if (!prev || prev.plantId !== result.plantaId) {
+            return prev;
+          }
+          return {
+            ...prev,
+            likes: { total: result.total ?? 0, likedByMe: Boolean(result.liked) },
+          };
+        });
       }
     } catch (err) {
       setInteractionError(err.response?.data?.error || t('communityActionError'));
@@ -265,6 +314,18 @@ const ComunidadView = () => {
     if (info.plantDelta < 0) return 'bg-rose-500';
     return 'bg-slate-500';
   };
+
+  const previewLikes = previewImage?.likes ?? { total: 0, likedByMe: false };
+  const previewLikeActionLabel = previewImage
+    ? eventLikeLoadingId === previewImage.plantId
+      ? t('communityWorking')
+      : previewLikes.likedByMe
+      ? t('communityUnlikeEvent')
+      : t('communityLikeEvent')
+    : '';
+  const previewLikeCountLabel = previewImage
+    ? t('communityLikesCount', { count: previewLikes.total })
+    : '';
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
@@ -462,74 +523,114 @@ const ComunidadView = () => {
               <h3 className="text-lg font-semibold text-gardenSoil">{t('communitySharedEvents')}</h3>
               {profile.jardin?.plantas?.length ? (
                 <ul className="mt-3 space-y-3">
-                  {profile.jardin.plantas.map((plant) => (
-                    <li key={plant.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-base font-semibold text-gardenSoil">{plant.nombre}</p>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
-                            {getLabelForCategory(plant.categoria) || t('gardenNoCategory')}
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase text-white ${renderEventBadge(
-                            plant.tipo
-                          )}`}
-                        >
-                          {getLabelForType(plant.tipo)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-600">{plant.descripcion || t('communityNoDescriptionAvailable')}</p>
-                      {plant.foto && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreviewImage({
-                              src: plant.foto,
-                              alt: t('gardenEventPhotoAlt', { name: plant.nombre }),
-                            })
-                          }
-                          className="mt-3 block w-full overflow-hidden rounded-2xl focus:outline-none focus:ring-2 focus:ring-gardenGreen/60"
-                        >
-                          <img
-                            src={plant.foto}
-                            alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
-                            className="h-48 w-full object-cover transition hover:scale-[1.02]"
-                            loading="lazy"
-                          />
-                        </button>
-                      )}
-                      <time className="mt-2 block text-xs text-slate-500">
-                        {new Date(plant.fecha_plantado).toLocaleString(locale, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
-                      </time>
+                  {profile.jardin.plantas.map((plant) => {
+                    const likesInfo = {
+                      total: plant.likes?.total ?? 0,
+                      likedByMe: Boolean(plant.likes?.likedByMe),
+                    };
+                    const likeActionLabel =
+                      eventLikeLoadingId === plant.id
+                        ? t('communityWorking')
+                        : likesInfo.likedByMe
+                        ? t('communityUnlikeEvent')
+                        : t('communityLikeEvent');
+                    const likeCountText = t('communityLikesCount', { count: likesInfo.total });
 
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleEventLike(plant.id)}
-                          disabled={eventLikeLoadingId === plant.id}
-                          className={`flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/60 focus:ring-offset-1 ${
-                            plant.likes?.likedByMe
-                              ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
-                              : 'border-gardenGreen text-gardenGreen hover:bg-emerald-50'
-                          } disabled:cursor-not-allowed disabled:opacity-60`}
-                        >
-                          {eventLikeLoadingId === plant.id
-                            ? t('communityWorking')
-                            : plant.likes?.likedByMe
-                            ? t('communityUnlikeEvent')
-                            : t('communityLikeEvent')}
-                          <span className="inline-flex min-w-[1.75rem] justify-center rounded-full bg-white/30 px-2 py-0.5 text-xs font-semibold text-white">
-                            {plant.likes?.total ?? 0}
+                    return (
+                      <li key={plant.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-base font-semibold text-gardenSoil">{plant.nombre}</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gardenGreen">
+                              {getLabelForCategory(plant.categoria) || t('gardenNoCategory')}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase text-white ${renderEventBadge(
+                              plant.tipo
+                            )}`}
+                          >
+                            {getLabelForType(plant.tipo)}
                           </span>
-                        </button>
-                        <p className="text-xs text-slate-500">
-                          {t('communityLikesCount', { count: plant.likes?.total ?? 0 })}
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {plant.descripcion || t('communityNoDescriptionAvailable')}
                         </p>
-                      </div>
+                        {plant.foto && (
+                          <div className="mt-3">
+                            <div className="relative overflow-hidden rounded-2xl">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewImage({
+                                    plantId: plant.id,
+                                    src: plant.foto,
+                                    alt: t('gardenEventPhotoAlt', { name: plant.nombre }),
+                                    likes: likesInfo,
+                                  })
+                                }
+                                className="block w-full focus:outline-none focus:ring-2 focus:ring-gardenGreen/60"
+                              >
+                                <img
+                                  src={plant.foto}
+                                  alt={t('gardenEventPhotoAlt', { name: plant.nombre })}
+                                  className="h-48 w-full object-cover transition duration-300 hover:scale-[1.02]"
+                                  loading="lazy"
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleEventLike(plant.id)}
+                                disabled={eventLikeLoadingId === plant.id}
+                                className={`absolute right-3 top-3 z-10 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-black/30 ${
+                                  likesInfo.likedByMe
+                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                    : 'bg-black/70 text-white hover:bg-black/80'
+                                } disabled:cursor-not-allowed disabled:opacity-70`}
+                                aria-label={`${likeActionLabel}. ${likeCountText}`}
+                                title={likeActionLabel}
+                              >
+                                <span className="sr-only">{likeActionLabel}</span>
+                                <span aria-hidden="true" className="text-lg">
+                                  {likesInfo.likedByMe ? '❤️' : '🤍'}
+                                </span>
+                                <span
+                                  aria-hidden="true"
+                                  className="inline-flex min-w-[1.5rem] justify-center rounded-full bg-white/30 px-2 py-0.5 text-[0.7rem] font-semibold text-white"
+                                >
+                                  {likesInfo.total}
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <time className="mt-2 block text-xs text-slate-500">
+                          {new Date(plant.fecha_plantado).toLocaleString(locale, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </time>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          {!plant.foto && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleEventLike(plant.id)}
+                              disabled={eventLikeLoadingId === plant.id}
+                              className={`flex items-center gap-2 rounded-full border px-4 py-1 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/60 focus:ring-offset-1 ${
+                                likesInfo.likedByMe
+                                  ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                                  : 'border-gardenGreen text-gardenGreen hover:bg-emerald-50'
+                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                            >
+                              {likeActionLabel}
+                              <span className="inline-flex min-w-[1.75rem] justify-center rounded-full bg-white/30 px-2 py-0.5 text-xs font-semibold text-white">
+                                {likesInfo.total}
+                              </span>
+                            </button>
+                          )}
+                          <p className="text-xs text-slate-500">{likeCountText}</p>
+                        </div>
 
                       <div className="mt-4 border-t border-slate-200 pt-4">
                         <h4 className="text-sm font-semibold text-gardenGreen">
@@ -616,7 +717,8 @@ const ComunidadView = () => {
                         </form>
                       </div>
                     </li>
-                  ))}
+                  );
+                })}
                 </ul>
               ) : (
                 <p className="mt-3 text-sm text-slate-600">{t('communityNoSharedEvents')}</p>
@@ -636,6 +738,13 @@ const ComunidadView = () => {
         src={previewImage?.src}
         alt={previewImage?.alt || ''}
         onClose={() => setPreviewImage(null)}
+        likes={previewLikes}
+        likeActionLabel={previewLikeActionLabel}
+        likeCountLabel={previewLikeCountLabel}
+        onToggleLike={
+          previewImage?.plantId ? () => handleToggleEventLike(previewImage.plantId) : undefined
+        }
+        isLiking={Boolean(previewImage?.plantId && eventLikeLoadingId === previewImage.plantId)}
       />
     </div>
   );
