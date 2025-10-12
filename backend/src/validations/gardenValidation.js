@@ -7,7 +7,8 @@ exports.createPlantSchema = Joi.object({
   descripcion: Joi.string().trim().max(500).allow('', null),
   foto: Joi.string()
     .trim()
-    .dataUri({ scheme: [/^data:image\//] })
+    .dataUri()
+    .pattern(/^data:image\//)
     .max(5_000_000)
     .optional(),
 });
