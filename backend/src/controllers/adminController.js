@@ -13,6 +13,7 @@ const {
   updateEventCategorySchema,
   eventCategoryIdParamSchema,
 } = require('../validations/eventCategoryValidation');
+const { normalizeRole } = require('../utils/roles');
 
 const normalizeNumber = (value) => Number.parseFloat(Number(value) || 0);
 
@@ -359,7 +360,7 @@ exports.getDashboard = async (req, res, next) => {
       return {
         id: user.id,
         nombre_usuario: user.nombre_usuario,
-        rol: user.rol || 'usuario',
+        rol: normalizeRole(user.rol),
         semillas: normalizeNumber(user.semillas),
         fecha_creacion: user.fecha_creacion,
         antiguedad_dias: Number.parseFloat(ageDays.toFixed(2)),
@@ -435,7 +436,7 @@ exports.getDashboard = async (req, res, next) => {
         return {
           id: userId,
           nombre_usuario: user.nombre_usuario,
-          rol: user.rol || 'usuario',
+          rol: normalizeRole(user.rol),
           comentarios: info.comentarios,
           likes: info.likesComentarios + info.likesPlantas,
           totalInteracciones,
@@ -612,7 +613,7 @@ exports.listUsers = async (req, res, next) => {
         email: user.email,
         semillas: normalizeNumber(user.semillas),
         medalla_compras: normalizeNumber(user.medalla_compras),
-        rol: user.rol || 'usuario',
+        rol: normalizeRole(user.rol),
         fecha_creacion: user.fecha_creacion,
         semillas_enviadas: sent.total,
         semillas_enviadas_operaciones: sent.operaciones,
