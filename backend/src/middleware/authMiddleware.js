@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const supabase = require('../lib/supabaseClient');
+const { normalizeRole } = require('../utils/roles');
 
 module.exports = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -25,7 +26,10 @@ module.exports = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ error: 'Invalid token' });
     }
-    req.user = user;
+    req.user = {
+      ...user,
+      rol: normalizeRole(user.rol),
+    };
     next();
   } catch (error) {
     console.error(error);

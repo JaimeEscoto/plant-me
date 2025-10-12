@@ -4,6 +4,7 @@ const supabase = require('../lib/supabaseClient');
 const { toHttpError } = require('../utils/supabase');
 const { buildAccessoryList } = require('../utils/accessories');
 const { registerSchema, loginSchema } = require('../validations/authValidation');
+const { normalizeRole } = require('../utils/roles');
 
 const signToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_SECRET, {
@@ -81,7 +82,7 @@ exports.register = async (req, res, next) => {
         email: user.email,
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
-        rol: user.rol || 'usuario',
+        rol: normalizeRole(user.rol),
         jardin: gardenWithAccessories,
       },
     });
@@ -152,7 +153,7 @@ exports.login = async (req, res, next) => {
         email: user.email,
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
-        rol: user.rol || 'usuario',
+        rol: normalizeRole(user.rol),
         jardin: gardenWithAccessories,
       },
     });

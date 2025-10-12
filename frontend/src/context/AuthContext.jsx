@@ -8,6 +8,28 @@ import React, {
 import axios from 'axios';
 import { useLanguage } from './LanguageContext';
 
+const normalizeRole = (role) => {
+  if (typeof role === 'string') {
+    const normalized = role.trim().toLowerCase();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return role;
+};
+
+const normalizeUser = (rawUser) => {
+  if (!rawUser) {
+    return null;
+  }
+
+  return {
+    ...rawUser,
+    rol: normalizeRole(rawUser.rol) || rawUser.rol,
+  };
+};
+
 const AuthContext = createContext();
 
 const api = axios.create({
@@ -19,7 +41,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    return normalizeUser(parsedUser);
   });
   const [garden, setGarden] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,14 +50,15 @@ export const AuthProvider = ({ children }) => {
 
   const setSession = (sessionToken, sessionUser) => {
     setToken(sessionToken);
-    setUser(sessionUser);
+    const normalizedUser = normalizeUser(sessionUser);
+    setUser(normalizedUser);
     if (sessionToken) {
       localStorage.setItem('token', sessionToken);
     } else {
       localStorage.removeItem('token');
     }
-    if (sessionUser) {
-      localStorage.setItem('user', JSON.stringify(sessionUser));
+    if (normalizedUser) {
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
     } else {
       localStorage.removeItem('user');
     }
