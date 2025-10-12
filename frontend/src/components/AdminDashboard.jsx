@@ -1,14 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
 
-const SummaryCard = ({ title, value, helper }) => (
-  <div className="rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-white/60">
-    <p className="text-sm font-medium text-slate-500">{title}</p>
-    <p className="mt-2 text-3xl font-semibold text-slate-900">{value}</p>
-    {helper ? <p className="mt-1 text-sm text-slate-500">{helper}</p> : null}
+const SummaryCard = ({ title, value, helper, accent }) => (
+  <div className="relative overflow-hidden rounded-2xl bg-white/80 p-5 shadow-sm ring-1 ring-black/5">
+    <div
+      aria-hidden="true"
+      className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500"
+    />
+    <div className="flex items-start justify-between">
+      <p className="text-sm font-medium text-slate-500">{title}</p>
+      {accent ? (
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-lg">
+          {accent}
+        </span>
+      ) : null}
+    </div>
+    <p className="mt-4 text-3xl font-semibold text-slate-900">{value}</p>
+    {helper ? <p className="mt-2 text-sm text-slate-500">{helper}</p> : null}
   </div>
 );
 
@@ -29,12 +40,12 @@ const HorizontalBarList = ({
         <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
       ) : (
         <ul className="mt-4 space-y-3">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const value = getValue(item);
             const percentage = maxValue ? Math.round((value / maxValue) * 100) : 0;
             const width = value > 0 ? Math.max(8, Math.min(100, percentage)) : 0;
             return (
-              <li key={getLabel(item)} className="space-y-1">
+              <li key={`${getLabel(item)}-${index}`} className="space-y-1">
                 <div className="flex items-center justify-between text-sm font-medium text-slate-700">
                   <span>{getLabel(item)}</span>
                   <span>{formatNumber(value)}</span>
@@ -60,6 +71,65 @@ const StatusPill = ({ label }) => (
   </span>
 );
 
+const TrendSparkline = ({ data, colorFrom, colorTo, lineColor }) => {
+  const gradientId = useId();
+  const safeData = data.length <= 1 ? [...data, ...data] : data;
+  const dataset = safeData.length ? safeData : [0, 0];
+  const minValue = Math.min(...dataset);
+  const maxValue = Math.max(...dataset);
+  const verticalRange = maxValue - minValue || 1;
+
+  const points = dataset.map((value, index) => {
+    const x = (index / (dataset.length - 1 || 1)) * 100;
+    const y = 100 - ((value - minValue) / verticalRange) * 100;
+    return [x, y];
+  });
+
+  const linePath = points
+    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(' ');
+
+  const areaPath = `${linePath} L 100,100 L 0,100 Z`;
+
+  return (
+    <svg viewBox="0 0 100 100" className="relative z-10 h-full w-full" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={colorFrom} stopOpacity="0.45" />
+          <stop offset="100%" stopColor={colorTo} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={lineColor}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+const DonutChart = ({ seedsAngle, accessoriesAngle, hasData, centerLabel, centerValue }) => (
+  <div className="relative mx-auto h-40 w-40">
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 rounded-full shadow-inner"
+      style={{
+        background: hasData
+          ? `conic-gradient(#047857 0deg ${seedsAngle}deg, #10b981 ${seedsAngle}deg ${seedsAngle + accessoriesAngle}deg, rgba(226,232,240,1) ${seedsAngle + accessoriesAngle}deg 360deg)`
+          : 'conic-gradient(rgba(226,232,240,1) 0deg 360deg)',
+      }}
+    />
+    <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-sm">
+      <p className="text-xs font-medium text-slate-500">{centerLabel}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-900">{centerValue}</p>
+    </div>
+  </div>
+);
+
 const AdminDashboard = () => {
   const { getAdminDashboard } = useAuth();
   const { t, locale } = useLanguage();
@@ -76,6 +146,22 @@ const AdminDashboard = () => {
       new Intl.DateTimeFormat(locale, {
         dateStyle: 'medium',
         timeStyle: 'short',
+      }),
+    [locale]
+  );
+  const percentageFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
+  const shortDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: 'short',
+        day: 'numeric',
+      }),
+    [locale]
+  );
+  const weekdayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        weekday: 'short',
       }),
     [locale]
   );
@@ -108,6 +194,75 @@ const AdminDashboard = () => {
     };
   }, [getAdminDashboard, t]);
 
+  const resumen = data?.resumen || {};
+  const semillas = data?.semillas || {};
+  const eventos = data?.eventos || {};
+
+  const transferTrend = useMemo(() => {
+    if (!Array.isArray(semillas.transferenciasRecientes)) {
+      return [];
+    }
+
+    const grouped = new Map();
+
+    semillas.transferenciasRecientes.forEach((transfer) => {
+      if (!transfer?.fecha_creacion) return;
+      const date = new Date(transfer.fecha_creacion);
+      if (Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      const currentValue = grouped.get(key) || 0;
+      grouped.set(key, currentValue + (transfer.cantidad || 0));
+    });
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .slice(-7)
+      .map(([key, total]) => {
+        const parsedDate = new Date(key);
+        return {
+          key,
+          total,
+          label: `${weekdayFormatter.format(parsedDate)} ${shortDateFormatter.format(parsedDate)}`,
+        };
+      });
+  }, [semillas.transferenciasRecientes, shortDateFormatter, weekdayFormatter]);
+
+  const eventTrend = useMemo(() => {
+    if (!Array.isArray(eventos.recientes)) {
+      return [];
+    }
+
+    const grouped = new Map();
+
+    eventos.recientes.forEach((event) => {
+      if (!event?.fecha_plantado) return;
+      const date = new Date(event.fecha_plantado);
+      if (Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      const currentValue = grouped.get(key) || 0;
+      grouped.set(key, currentValue + 1);
+    });
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .slice(-7)
+      .map(([key, total]) => {
+        const parsedDate = new Date(key);
+        return {
+          key,
+          total,
+          label: `${weekdayFormatter.format(parsedDate)} ${shortDateFormatter.format(parsedDate)}`,
+        };
+      });
+  }, [eventos.recientes, shortDateFormatter, weekdayFormatter]);
+
+  const transferSparklineData = transferTrend.map((item) => item.total);
+  const eventSparklineData = eventTrend.map((item) => item.total);
+  const transferTotal = transferTrend.reduce((sum, item) => sum + item.total, 0);
+  const eventsTotal = eventTrend.reduce((sum, item) => sum + item.total, 0);
+  const lastTransferEntry = transferTrend[transferTrend.length - 1];
+  const lastEventEntry = eventTrend[eventTrend.length - 1];
+
   if (loading) {
     return (
       <div className="rounded-2xl bg-white/70 p-10 text-center text-slate-600 shadow-sm ring-1 ring-white/60">
@@ -132,9 +287,56 @@ const AdminDashboard = () => {
     );
   }
 
-  const resumen = data.resumen || {};
-  const semillas = data.semillas || {};
-  const eventos = data.eventos || {};
+  const totalSeedsMoved = resumen.totalSemillasTransferidas || 0;
+  const totalAccessoriesMoved = resumen.totalAccesoriosTransferidos || 0;
+  const totalResources = totalSeedsMoved + totalAccessoriesMoved;
+  const hasResourceData = totalResources > 0;
+  const seedsAngle = hasResourceData ? (totalSeedsMoved / totalResources) * 360 : 0;
+  const accessoriesAngle = hasResourceData ? (totalAccessoriesMoved / totalResources) * 360 : 0;
+  const seedsPercentage = hasResourceData ? (totalSeedsMoved / totalResources) * 100 : 0;
+  const accessoriesPercentage = hasResourceData ? (totalAccessoriesMoved / totalResources) * 100 : 0;
+  const seedsPercentageLabel = `${percentageFormatter.format(seedsPercentage)}%`;
+  const accessoriesPercentageLabel = `${percentageFormatter.format(accessoriesPercentage)}%`;
+  const resourcesHelperText = hasResourceData
+    ? t('adminResourceDistributionHelper')
+    : t('adminResourceNoMovement');
+  const transferHelperText = transferTrend.length
+    ? t('adminTrendWindowLabel', { count: transferTrend.length })
+    : t('adminTrendInsufficientData');
+  const eventHelperText = eventTrend.length
+    ? t('adminTrendWindowLabel', { count: eventTrend.length })
+    : t('adminTrendInsufficientData');
+  const transferTotalText = t('adminTrendTotalSeeds', {
+    value: numberFormatter.format(transferTotal),
+  });
+  const eventTotalText = t('adminTrendTotalEvents', {
+    value: numberFormatter.format(eventsTotal),
+  });
+  const transferLastText = lastTransferEntry
+    ? t('adminTrendLastTransfer', {
+        value: numberFormatter.format(lastTransferEntry.total || 0),
+        date: lastTransferEntry.label,
+      })
+    : null;
+  const eventLastText = lastEventEntry
+    ? t('adminTrendLastEventCount', {
+        value: numberFormatter.format(lastEventEntry.total || 0),
+        date: lastEventEntry.label,
+      })
+    : null;
+  const resourceCenterValue = numberFormatter.format(totalResources);
+  const resourceCenterLabel = t('adminResourceTotal');
+  const seedsLegendText = t('adminResourceSeedsLabel', {
+    value: numberFormatter.format(totalSeedsMoved),
+    percentage: seedsPercentageLabel,
+  });
+  const accessoriesLegendText = t('adminResourceAccessoriesLabel', {
+    value: numberFormatter.format(totalAccessoriesMoved),
+    percentage: accessoriesPercentageLabel,
+  });
+  const renderAccent = (classes) => (
+    <span aria-hidden="true" className={`block h-5 w-5 rounded-full bg-gradient-to-br ${classes} shadow`} />
+  );
 
   return (
     <div className="space-y-8">
@@ -144,29 +346,125 @@ const AdminDashboard = () => {
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <SummaryCard title={t('adminStatsUsers')} value={numberFormatter.format(resumen.totalUsuarios || 0)} />
+        <SummaryCard
+          title={t('adminStatsUsers')}
+          value={numberFormatter.format(resumen.totalUsuarios || 0)}
+          accent={renderAccent('from-emerald-400 via-emerald-500 to-teal-500')}
+        />
         <SummaryCard
           title={t('adminStatsSeeds')}
           value={`${numberFormatter.format(resumen.totalSemillas || 0)} 🌱`}
+          accent={renderAccent('from-teal-400 via-emerald-500 to-lime-400')}
         />
         <SummaryCard
           title={t('adminStatsHealth')}
           value={`${decimalFormatter.format(resumen.saludPromedioJardines || 0)}%`}
+          accent={renderAccent('from-amber-300 via-orange-400 to-rose-400')}
         />
-        <SummaryCard title={t('adminStatsEvents')} value={numberFormatter.format(resumen.totalEventos || 0)} />
+        <SummaryCard
+          title={t('adminStatsEvents')}
+          value={numberFormatter.format(resumen.totalEventos || 0)}
+          accent={renderAccent('from-sky-400 via-emerald-400 to-indigo-400')}
+        />
         <SummaryCard
           title={t('adminStatsTransfers')}
           value={`${numberFormatter.format(resumen.totalSemillasTransferidas || 0)} 🌱`}
+          accent={renderAccent('from-emerald-500 via-teal-500 to-emerald-600')}
         />
         <SummaryCard
           title={t('adminStatsAccessories')}
           value={numberFormatter.format(resumen.totalAccesoriosTransferidos || 0)}
+          accent={renderAccent('from-purple-400 via-violet-500 to-sky-400')}
         />
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-3">
+        <div className="rounded-3xl bg-gradient-to-br from-emerald-500/10 via-white to-white p-6 shadow-sm ring-1 ring-emerald-100">
+          <h3 className="text-sm font-semibold text-emerald-700">{t('adminResourceDistribution')}</h3>
+          <p className="mt-2 text-sm text-slate-600">{resourcesHelperText}</p>
+          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-center">
+            <DonutChart
+              seedsAngle={seedsAngle}
+              accessoriesAngle={accessoriesAngle}
+              hasData={hasResourceData}
+              centerLabel={resourceCenterLabel}
+              centerValue={resourceCenterValue}
+            />
+            <div className="flex-1 space-y-4 text-sm text-slate-600">
+              <div className="flex items-start gap-3">
+                <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                <div>
+                  <p className="font-medium text-slate-700">{seedsLegendText}</p>
+                  <p className="text-xs text-slate-500">{t('adminTrendTotalSeeds', { value: numberFormatter.format(totalSeedsMoved) })}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span aria-hidden="true" className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                <div>
+                  <p className="font-medium text-slate-700">{accessoriesLegendText}</p>
+                  <p className="text-xs text-slate-500">{t('adminResourceAccessoriesTotal', { value: numberFormatter.format(totalAccessoriesMoved) })}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-100">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-slate-700">{t('adminSeedsOverview')}</h3>
+            <p className="text-xs text-slate-500">{transferHelperText}</p>
+          </div>
+          <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:16px_16px]" />
+            {transferTrend.length ? (
+              <TrendSparkline
+                data={transferSparklineData}
+                colorFrom="#34d399"
+                colorTo="#dcfce7"
+                lineColor="#047857"
+              />
+            ) : (
+              <div className="relative z-10 flex h-full items-center justify-center text-xs font-medium text-slate-400">
+                {t('adminTrendInsufficientData')}
+              </div>
+            )}
+          </div>
+          <ul className="mt-6 space-y-2 text-sm text-slate-600">
+            <li>{transferTotalText}</li>
+            {transferLastText ? <li>{transferLastText}</li> : null}
+          </ul>
+        </div>
+
+        <div className="rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-100">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-slate-700">{t('adminEventsActivityTitle')}</h3>
+            <p className="text-xs text-slate-500">{eventHelperText}</p>
+          </div>
+          <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:16px_16px]" />
+            {eventTrend.length ? (
+              <TrendSparkline
+                data={eventSparklineData}
+                colorFrom="#c4b5fd"
+                colorTo="#ede9fe"
+                lineColor="#7c3aed"
+              />
+            ) : (
+              <div className="relative z-10 flex h-full items-center justify-center text-xs font-medium text-slate-400">
+                {t('adminTrendInsufficientData')}
+              </div>
+            )}
+          </div>
+          <ul className="mt-6 space-y-2 text-sm text-slate-600">
+            <li>{eventTotalText}</li>
+            {eventLastText ? <li>{eventLastText}</li> : null}
+          </ul>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-5">
-          <h3 className="text-lg font-semibold text-slate-900">{t('adminSeedsOverview')}</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{t('adminSeedsLeaderboard')}</h3>
           <HorizontalBarList
             title={t('adminSeedsTopSenders')}
             items={semillas.topRemitentes || []}
