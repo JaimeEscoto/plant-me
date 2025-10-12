@@ -169,7 +169,7 @@ exports.createPlantComment = async (req, res, next) => {
       likes: { total: 0, likedByMe: false },
     };
 
-    return res.status(201).json({ comentario, plantaId });
+    return res.status(201).json({ comentario, plantaId: plantId });
   } catch (err) {
     return next(err);
   }
