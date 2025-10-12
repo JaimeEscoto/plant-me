@@ -419,11 +419,14 @@ exports.getHistory = async (req, res, next) => {
       .eq('jardin_id', garden.id)
       .order('fecha_plantado', { ascending: false });
 
+    const formatDateForQuery = (date) =>
+      date instanceof Date ? date.toISOString() : date;
+
     if (value.fechaInicio) {
-      query = query.gte('fecha_plantado', value.fechaInicio);
+      query = query.gte('fecha_plantado', formatDateForQuery(value.fechaInicio));
     }
     if (value.fechaFin) {
-      query = query.lte('fecha_plantado', value.fechaFin);
+      query = query.lte('fecha_plantado', formatDateForQuery(value.fechaFin));
     }
 
     const { data: plants, error: historyError } = await query;
