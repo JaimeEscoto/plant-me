@@ -203,27 +203,100 @@ const VerticalBarChart = ({ data, getLabel, getValue, formatValue, emptyLabel })
   }
 
   const maxValue = Math.max(...items.map((item) => getValue(item))) || 1;
+  const gradientId = useId();
+  const chartHeight = 72; // percentage of the viewBox reserved for the bar heights
+  const baseline = 90; // y position for the x axis
+  const topMargin = baseline - chartHeight;
+  const totalSlots = items.length * 2 + 1;
+  const slotWidth = 90 / totalSlots; // keep a little margin on the sides
+  const chartOffset = (100 - 90) / 2; // equal margin left and right
+
+  const ticks = 4;
+  const gridLines = Array.from({ length: ticks + 1 }, (_, index) => {
+    const value = (index / ticks) * maxValue;
+    const y = baseline - (index / ticks) * chartHeight;
+    return { key: `tick-${index}`, y, value };
+  });
 
   return (
-    <div className="flex h-48 items-end gap-4">
-      {items.map((item, index) => {
-        const value = getValue(item);
-        const height = Math.max(6, Math.round((value / maxValue) * 100));
-        return (
-          <div key={`${getLabel(item)}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-full w-full items-end justify-center rounded-t-xl bg-emerald-100/30">
-              <div
-                className="w-full rounded-t-xl bg-gradient-to-t from-emerald-500 via-emerald-400 to-sky-400"
-                style={{ height: `${height}%` }}
-              >
-                <span className="sr-only">{formatValue(value)}</span>
-              </div>
-            </div>
-            <span className="text-xs font-medium text-slate-600 text-center leading-tight">{getLabel(item)}</span>
-            <span className="text-xs text-slate-500">{formatValue(value)}</span>
-          </div>
-        );
-      })}
+    <div className="mt-4">
+      <div className="relative h-56 overflow-hidden rounded-xl border border-slate-200/60 bg-slate-50">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#047857" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
+            </linearGradient>
+          </defs>
+
+          {gridLines.map((line, index) => (
+            <g key={line.key}>
+              <line
+                x1={5}
+                y1={line.y}
+                x2={95}
+                y2={line.y}
+                stroke={index === 0 ? '#94a3b8' : '#cbd5f5'}
+                strokeWidth={index === 0 ? 0.6 : 0.4}
+                strokeDasharray={index === 0 ? '0' : '2 2'}
+              />
+              {index !== 0 ? (
+                <text
+                  x={8}
+                  y={line.y - 1.5}
+                  fontSize={3}
+                  fill="#64748b"
+                >
+                  {formatValue(line.value)}
+                </text>
+              ) : null}
+            </g>
+          ))}
+
+          {items.map((item, index) => {
+            const value = getValue(item);
+            const barHeight = (value / maxValue) * chartHeight;
+            const effectiveHeight = Math.max(4, barHeight);
+            const barX = chartOffset + slotWidth * (index * 2 + 1);
+            const barY = Math.max(topMargin, baseline - effectiveHeight);
+            const labelY = Math.min(98, baseline + 6);
+            const displayValue = formatValue(value);
+
+            return (
+              <g key={`${getLabel(item)}-${index}`}>
+                <rect
+                  x={barX}
+                  y={barY}
+                  width={slotWidth}
+                  height={effectiveHeight}
+                  fill={`url(#${gradientId})`}
+                  rx={2}
+                >
+                  <title>{`${getLabel(item)}: ${displayValue}`}</title>
+                </rect>
+                <text
+                  x={barX + slotWidth / 2}
+                  y={Math.max(topMargin + 5, barY - 2)}
+                  fontSize={3.2}
+                  textAnchor="middle"
+                  fill="#0f172a"
+                >
+                  {displayValue}
+                </text>
+                <text
+                  x={barX + slotWidth / 2}
+                  y={labelY}
+                  fontSize={3.2}
+                  textAnchor="middle"
+                  fill="#475569"
+                >
+                  {getLabel(item)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 };
