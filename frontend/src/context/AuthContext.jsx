@@ -202,6 +202,29 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const updateProfilePhoto = useCallback(
+    async (photoData) => {
+      if (!token) return null;
+      const { data } = await api.put(
+        '/usuarios/perfil/foto',
+        { foto_perfil: photoData },
+        { headers: authHeaders }
+      );
+
+      const mergedUserPayload = data?.usuario
+        ? { ...(user || {}), ...data.usuario }
+        : user || null;
+      const mergedUser = normalizeUser(mergedUserPayload);
+
+      if (mergedUser) {
+        setSession(token, mergedUser);
+      }
+
+      return mergedUser?.foto_perfil || null;
+    },
+    [authHeaders, token, user]
+  );
+
   const toggleCommentLike = useCallback(
     async (commentId) => {
       if (!token) return null;
@@ -432,6 +455,7 @@ export const AuthProvider = ({ children }) => {
     togglePlantLike,
     createPlantComment,
     toggleCommentLike,
+    updateProfilePhoto,
     getEconomyOverview,
     purchaseAccessory,
     sellAccessory,

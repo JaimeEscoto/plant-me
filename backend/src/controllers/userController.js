@@ -1,6 +1,10 @@
 const supabase = require('../lib/supabaseClient');
 const { toHttpError } = require('../utils/supabase');
-const { searchUsersSchema, userIdParamSchema } = require('../validations/userValidation');
+const {
+  searchUsersSchema,
+  userIdParamSchema,
+  updateProfilePhotoSchema,
+} = require('../validations/userValidation');
 
 const buildFriendEntries = (pairs, currentUserId) => {
   if (!Array.isArray(pairs)) return [];
@@ -42,7 +46,7 @@ const fetchFriendsSummaries = async (friendEntries) => {
   const [{ data: users, error: usersError }, { data: gardens, error: gardensError }] = await Promise.all([
     supabase
       .from('usuarios')
-      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas')
+      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas, foto_perfil')
       .in('id', friendIds),
     supabase
       .from('jardines')
@@ -77,6 +81,7 @@ const fetchFriendsSummaries = async (friendEntries) => {
         fecha_union: entry.fechaAmistad || null,
         medalla_compras: user.medalla_compras || 0,
         semillas: user.semillas || 0,
+        foto_perfil: user.foto_perfil || null,
         jardin: garden
           ? {
               id: garden.id,
@@ -95,7 +100,7 @@ const fetchUserProfile = async (userId, currentUserId) => {
   const [{ data: user, error: userError }, { data: garden, error: gardenError }] = await Promise.all([
     supabase
       .from('usuarios')
-      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas')
+      .select('id, nombre_usuario, fecha_creacion, medalla_compras, semillas, foto_perfil')
       .eq('id', userId)
       .maybeSingle(),
     supabase
@@ -132,7 +137,7 @@ const fetchUserProfile = async (userId, currentUserId) => {
         .in('planta_id', plantIds),
       supabase
         .from('plantas_comentarios')
-        .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario )')
+        .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario, foto_perfil )')
         .in('planta_id', plantIds)
         .order('fecha_creacion', { ascending: true }),
     ]);
@@ -196,6 +201,7 @@ const fetchUserProfile = async (userId, currentUserId) => {
         contenido: comment.contenido,
         fecha_creacion: comment.fecha_creacion,
         autor: comment.usuarios?.nombre_usuario || null,
+        autor_avatar: comment.usuarios?.foto_perfil || null,
         likes: { total: likesInfo.count, likedByMe: likesInfo.likedByMe },
       };
 
@@ -215,8 +221,15 @@ const fetchUserProfile = async (userId, currentUserId) => {
     });
   }
 
+  const normalizedUser = user
+    ? {
+        ...user,
+        foto_perfil: user.foto_perfil || null,
+      }
+    : null;
+
   return {
-    usuario: user,
+    usuario: normalizedUser,
     jardin: garden
       ? {
           id: garden.id,
@@ -244,7 +257,7 @@ exports.searchUsers = async (req, res, next) => {
 
     const { data: users, error: usersError } = await supabase
       .from('usuarios')
-      .select('id, nombre_usuario')
+      .select('id, nombre_usuario, foto_perfil')
       .ilike('nombre_usuario', `%${searchTerm}%`)
       .neq('id', req.user.id)
       .order('nombre_usuario', { ascending: true })
@@ -257,6 +270,7 @@ exports.searchUsers = async (req, res, next) => {
     const resultados = (users || []).map((user) => ({
       id: user.id,
       nombre_usuario: user.nombre_usuario,
+      foto_perfil: user.foto_perfil || null,
       es_amigo: friendIds.has(user.id),
     }));
 
@@ -348,6 +362,40 @@ exports.listFriends = async (req, res, next) => {
     const friendEntries = buildFriendEntries(friendPairs, req.user.id);
     const amigos = await fetchFriendsSummaries(friendEntries);
     return res.json({ amigos });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateProfilePhoto = async (req, res, next) => {
+  try {
+    const { value, error } = updateProfilePhotoSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    const photoData =
+      typeof value.foto_perfil === 'string' && value.foto_perfil.trim().length
+        ? value.foto_perfil.trim()
+        : null;
+
+    const { data: user, error: updateError } = await supabase
+      .from('usuarios')
+      .update({ foto_perfil: photoData })
+      .eq('id', req.user.id)
+      .select('id, nombre_usuario, email, semillas, medalla_compras, rol, foto_perfil')
+      .single();
+
+    if (updateError) {
+      throw toHttpError(updateError, 'No se pudo actualizar la foto de perfil.');
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    return res.json({ usuario: user });
   } catch (err) {
     return next(err);
   }

@@ -11,11 +11,15 @@ create table if not exists public.usuarios (
   fecha_creacion timestamptz not null default timezone('utc', now()),
   semillas integer not null default 0,
   medalla_compras integer not null default 0,
-  rol text not null default 'usuario'
+  rol text not null default 'usuario',
+  foto_perfil text
 );
 
 alter table if exists public.usuarios
   add column if not exists rol text not null default 'usuario';
+
+alter table if exists public.usuarios
+  add column if not exists foto_perfil text;
 
 create table if not exists public.usuario_accesorios (
   id uuid primary key default uuid_generate_v4(),
@@ -180,7 +184,8 @@ on conflict (id) do nothing;
 
 update public.usuarios
 set semillas = 120,
-    medalla_compras = 3
+    medalla_compras = 3,
+    foto_perfil = null
 where id = '21dccfd0-b9de-46a1-b4b7-2797a0029a18';
 
 insert into public.jardines (id, usuario_id, estado_salud, ultima_modificacion)

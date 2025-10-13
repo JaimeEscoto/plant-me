@@ -9,6 +9,7 @@ router.use(authMiddleware);
 
 router.get('/buscar', userController.searchUsers);
 router.get('/amigos', userController.listFriends);
+router.put('/perfil/foto', userController.updateProfilePhoto);
 router.post('/:id/amigos', userController.addFriend);
 router.get('/:id/perfil', userController.getProfile);
 router.post('/plantas/:plantId/likes', communityController.togglePlantLike);

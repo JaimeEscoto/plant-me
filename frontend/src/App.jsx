@@ -10,6 +10,7 @@ import SeedHistoryView from './components/SeedHistoryView';
 import HistorialView from './components/HistorialView';
 import ComunidadView from './components/ComunidadView';
 import LanguageSelector from './components/LanguageSelector';
+import ProfilePhotoManager from './components/ProfilePhotoManager';
 import AdminArea from './components/AdminArea';
 
 const Dashboard = () => {
@@ -28,6 +29,7 @@ const Dashboard = () => {
       <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white shadow">
         <h1 className="text-2xl font-bold text-gardenGreen">{t('headerTitle')}</h1>
         <div className="flex flex-wrap items-center justify-end gap-3">
+          <ProfilePhotoManager />
           <LanguageSelector />
           <nav className="space-x-3">
             <button

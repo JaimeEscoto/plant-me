@@ -83,6 +83,7 @@ exports.register = async (req, res, next) => {
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
         rol: normalizeRole(user.rol),
+        foto_perfil: user.foto_perfil || null,
         jardin: gardenWithAccessories,
       },
     });
@@ -154,6 +155,7 @@ exports.login = async (req, res, next) => {
         semillas: user.semillas,
         medalla_compras: user.medalla_compras,
         rol: normalizeRole(user.rol),
+        foto_perfil: user.foto_perfil || null,
         jardin: gardenWithAccessories,
       },
     });
