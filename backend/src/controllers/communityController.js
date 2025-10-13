@@ -152,7 +152,7 @@ exports.createPlantComment = async (req, res, next) => {
         usuario_id: req.user.id,
         contenido: body.contenido,
       })
-      .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario )')
+      .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario, foto_perfil )')
       .single();
 
     if (insertError) {
@@ -166,6 +166,7 @@ exports.createPlantComment = async (req, res, next) => {
       contenido: insertedComment.contenido,
       fecha_creacion: insertedComment.fecha_creacion,
       autor: insertedComment.usuarios?.nombre_usuario || null,
+      autor_avatar: insertedComment.usuarios?.foto_perfil || null,
       likes: { total: 0, likedByMe: false },
     };
 

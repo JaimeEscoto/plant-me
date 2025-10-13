@@ -5,6 +5,7 @@ import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 import ImagePreviewModal from './ImagePreviewModal';
+import Avatar from './Avatar';
 
 const ComunidadView = () => {
   const {
@@ -307,6 +308,18 @@ const ComunidadView = () => {
     [friends, selectedFriendId]
   );
 
+  const selectedFriendshipDate = useMemo(() => {
+    if (!selectedFriend?.fecha_union) {
+      return null;
+    }
+
+    try {
+      return new Date(selectedFriend.fecha_union).toLocaleDateString(locale, { dateStyle: 'medium' });
+    } catch (err) {
+      return null;
+    }
+  }, [selectedFriend, locale]);
+
   const renderEventBadge = (tipo) => {
     const info = getEventTypeByCode(tipo);
     if (!info) return 'bg-slate-500';
@@ -361,13 +374,21 @@ const ComunidadView = () => {
               {searchResults.map((result) => (
                 <li
                   key={result.id}
-                  className="flex flex-col items-start justify-between gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center"
+                  className="flex flex-col items-start justify-between gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div>
-                    <p className="text-sm font-semibold text-gardenSoil">{result.nombre_usuario}</p>
-                    {result.es_amigo && (
-                      <p className="text-xs text-emerald-600">{t('communityAlreadyFriend')}</p>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <Avatar
+                      src={result.foto_perfil}
+                      name={result.nombre_usuario}
+                      size="sm"
+                      alt={t('profileAvatarAlt', { name: result.nombre_usuario })}
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gardenSoil">{result.nombre_usuario}</p>
+                      {result.es_amigo && (
+                        <p className="text-xs text-emerald-600">{t('communityAlreadyFriend')}</p>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -424,8 +445,16 @@ const ComunidadView = () => {
                         : 'border-slate-100 bg-slate-50 hover:border-gardenGreen/60 hover:bg-white'
                     }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-base font-semibold text-gardenSoil">{friend.nombre_usuario}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          src={friend.foto_perfil}
+                          name={friend.nombre_usuario}
+                          size="sm"
+                          alt={t('profileAvatarAlt', { name: friend.nombre_usuario })}
+                        />
+                        <p className="text-base font-semibold text-gardenSoil">{friend.nombre_usuario}</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         {health !== null && (
                           <span className="text-sm font-semibold text-gardenGreen">
@@ -484,6 +513,26 @@ const ComunidadView = () => {
             {interactionError && (
               <p className="text-sm text-rose-600">{interactionError}</p>
             )}
+            <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <Avatar
+                src={profile.usuario?.foto_perfil}
+                name={profile.usuario?.nombre_usuario || selectedFriend?.nombre_usuario}
+                size="lg"
+                alt={t('profileAvatarAlt', {
+                  name: profile.usuario?.nombre_usuario || selectedFriend?.nombre_usuario || '',
+                })}
+              />
+              <div className="space-y-1">
+                <p className="text-lg font-semibold text-gardenSoil">
+                  {profile.usuario?.nombre_usuario || selectedFriend?.nombre_usuario}
+                </p>
+                {selectedFriendshipDate && (
+                  <p className="text-sm text-slate-600">
+                    {t('communityFriendshipSince', { date: selectedFriendshipDate })}
+                  </p>
+                )}
+              </div>
+            </div>
             {profile.jardin ? (
               <div className="rounded-2xl bg-gradient-to-br from-emerald-100 via-sky-100 to-white p-4">
                 <div className="flex flex-col-reverse items-center gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -644,11 +693,19 @@ const ComunidadView = () => {
                                 className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <div>
-                                    <p className="text-sm font-semibold text-gardenSoil">
-                                      {comment.autor || t('communityUnknownUser')}
-                                    </p>
-                                    <p className="text-sm text-slate-700">{comment.contenido}</p>
+                                  <div className="flex items-start gap-3">
+                                    <Avatar
+                                      src={comment.autor_avatar}
+                                      name={comment.autor || t('communityUnknownUser')}
+                                      size="xs"
+                                      alt={t('profileAvatarAlt', { name: comment.autor || t('communityUnknownUser') })}
+                                    />
+                                    <div>
+                                      <p className="text-sm font-semibold text-gardenSoil">
+                                        {comment.autor || t('communityUnknownUser')}
+                                      </p>
+                                      <p className="text-sm text-slate-700">{comment.contenido}</p>
+                                    </div>
                                   </div>
                                   <button
                                     type="button"
