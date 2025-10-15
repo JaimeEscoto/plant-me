@@ -16,6 +16,7 @@ import AdminArea from './components/AdminArea';
 const Dashboard = () => {
   const { garden, fetchGarden, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('jardin');
+  const [isClassicLayout, setIsClassicLayout] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -24,7 +25,23 @@ const Dashboard = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'shop':
+        return <ShopView />;
+      case 'seed-history':
+        return <SeedHistoryView />;
+      case 'historial':
+        return <HistorialView />;
+      case 'comunidad':
+        return <ComunidadView />;
+      case 'jardin':
+      default:
+        return <JardinView />;
+    }
+  };
+
+  const renderClassicLayout = () => (
     <div className="min-h-screen bg-gradient-to-b from-gardenSky to-white">
       <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white shadow">
         <h1 className="text-2xl font-bold text-gardenGreen">{t('headerTitle')}</h1>
@@ -91,13 +108,183 @@ const Dashboard = () => {
           </nav>
         </div>
       </header>
-      <main className="p-6">
-        {activeTab === 'jardin' && <JardinView />}
-        {activeTab === 'shop' && <ShopView />}
-        {activeTab === 'seed-history' && <SeedHistoryView />}
-        {activeTab === 'historial' && <HistorialView />}
-        {activeTab === 'comunidad' && <ComunidadView />}
+      <main className="p-6 space-y-6">
+        <div className="flex justify-end">
+          <button
+            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-200 rounded-full hover:bg-slate-300"
+            onClick={() => setIsClassicLayout(false)}
+          >
+            Volver al diseño renovado
+          </button>
+        </div>
+        {renderContent()}
       </main>
+    </div>
+  );
+
+  if (isClassicLayout) {
+    return renderClassicLayout();
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <div className="grid min-h-screen gap-6 lg:grid-cols-[280px_1fr]">
+        <aside className="flex flex-col bg-white border-r border-slate-200 shadow-sm">
+          <div className="px-6 py-6 border-b border-slate-100">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-400">PlantMe</p>
+                <h1 className="text-xl font-semibold text-gardenGreen">{t('headerTitle')}</h1>
+              </div>
+              <span className="inline-flex items-center justify-center w-10 h-10 text-lg font-semibold text-white bg-gardenGreen rounded-full">
+                🌱
+              </span>
+            </div>
+          </div>
+          <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+            <div>
+              <p className="px-2 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Explorar</p>
+              <div className="space-y-1">
+                <button
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/40 ${
+                    activeTab === 'jardin'
+                      ? 'bg-gardenGreen/10 text-gardenGreen shadow-inner'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={() => setActiveTab('jardin')}
+                >
+                  {t('navGarden')}
+                </button>
+                <button
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/40 ${
+                    activeTab === 'shop'
+                      ? 'bg-gardenGreen/10 text-gardenGreen shadow-inner'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={() => setActiveTab('shop')}
+                >
+                  {t('navShop')}
+                </button>
+              </div>
+            </div>
+            <div>
+              <p className="px-2 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Seguimiento</p>
+              <div className="space-y-1">
+                <button
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/40 ${
+                    activeTab === 'seed-history'
+                      ? 'bg-gardenGreen/10 text-gardenGreen shadow-inner'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={() => setActiveTab('seed-history')}
+                >
+                  {t('navSeedHistory')}
+                </button>
+                <button
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/40 ${
+                    activeTab === 'historial'
+                      ? 'bg-gardenGreen/10 text-gardenGreen shadow-inner'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={() => setActiveTab('historial')}
+                >
+                  {t('navHistory')}
+                </button>
+              </div>
+            </div>
+            <div>
+              <p className="px-2 mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Comunidad</p>
+              <div className="space-y-1">
+                <button
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-gardenGreen/40 ${
+                    activeTab === 'comunidad'
+                      ? 'bg-gardenGreen/10 text-gardenGreen shadow-inner'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  onClick={() => setActiveTab('comunidad')}
+                >
+                  {t('navCommunity')}
+                </button>
+              </div>
+            </div>
+          </nav>
+          <div className="px-6 py-6 space-y-3 border-t border-slate-100">
+            <button
+              className="w-full px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+              onClick={() => setIsClassicLayout(true)}
+            >
+              Volver a la vista clásica
+            </button>
+            <button
+              className="w-full px-4 py-2 text-sm font-semibold text-red-500 bg-red-100 rounded-lg hover:bg-red-200"
+              onClick={logout}
+            >
+              {t('navLogout')}
+            </button>
+          </div>
+        </aside>
+        <main className="flex flex-col pr-6">
+          <div className="sticky top-0 z-10 bg-slate-100/80 backdrop-blur border-b border-slate-200">
+            <div className="flex flex-col gap-4 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-900">Bienvenido a tu jardín inteligente</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Gestiona tus cultivos, descubre nuevas semillas y conecta con la comunidad en un solo lugar.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <LanguageSelector />
+                <ProfilePhotoManager />
+              </div>
+            </div>
+            <div className="px-6 pb-6">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <button
+                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
+                    activeTab === 'jardin'
+                      ? 'border-gardenGreen bg-white text-gardenGreen'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
+                  }`}
+                  onClick={() => setActiveTab('jardin')}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Planificación</p>
+                  <p className="mt-1 text-base font-semibold">Panel del jardín</p>
+                  <p className="text-xs text-slate-500">Cuida y organiza tus cultivos</p>
+                </button>
+                <button
+                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
+                    activeTab === 'seed-history'
+                      ? 'border-gardenGreen bg-white text-gardenGreen'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
+                  }`}
+                  onClick={() => setActiveTab('seed-history')}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Seguimiento</p>
+                  <p className="mt-1 text-base font-semibold">Registro de semillas</p>
+                  <p className="text-xs text-slate-500">Consulta siembras y germinaciones</p>
+                </button>
+                <button
+                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
+                    activeTab === 'comunidad'
+                      ? 'border-gardenGreen bg-white text-gardenGreen'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
+                  }`}
+                  onClick={() => setActiveTab('comunidad')}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Inspiración</p>
+                  <p className="mt-1 text-base font-semibold">Comunidad</p>
+                  <p className="text-xs text-slate-500">Comparte y aprende con otros horticultores</p>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 px-6 pb-10 overflow-y-auto">
+            <div className="max-w-6xl mx-auto space-y-6">
+              {renderContent()}
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
