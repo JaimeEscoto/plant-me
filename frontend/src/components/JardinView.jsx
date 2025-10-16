@@ -6,6 +6,7 @@ import { useEventTypes } from '../context/EventTypeContext';
 import { useEventCategories } from '../context/EventCategoryContext';
 import PlantHealthIllustration from './PlantHealthIllustration';
 import ImagePreviewModal from './ImagePreviewModal';
+import GardenInsights from './GardenInsights';
 
 const moodStyles = [
   { limit: 33, bg: 'from-red-100 via-orange-100 to-yellow-100', messageKey: 'gardenMoodNeedsCare' },
@@ -429,6 +430,14 @@ const JardinView = () => {
           )}
         </div>
       </section>
+
+      <GardenInsights
+        plants={garden.plantas || []}
+        locale={locale}
+        getLabelForCategory={getLabelForCategory}
+        getEventTypeByCode={getEventTypeByCode}
+        t={t}
+      />
 
       <section className="rounded-3xl bg-white/90 p-6 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-2">
