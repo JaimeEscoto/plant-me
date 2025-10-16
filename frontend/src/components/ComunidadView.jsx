@@ -9,9 +9,11 @@ import Avatar from './Avatar';
 
 const ComunidadView = () => {
   const {
+    user,
     searchUsers,
     addFriend,
     getFriends,
+    getCommunitySpotlight,
     getUserProfile,
     togglePlantLike,
     createPlantComment,
@@ -29,6 +31,10 @@ const ComunidadView = () => {
   const [friendsError, setFriendsError] = useState(null);
 
   const [addingFriendId, setAddingFriendId] = useState(null);
+
+  const [spotlight, setSpotlight] = useState(null);
+  const [spotlightLoading, setSpotlightLoading] = useState(true);
+  const [spotlightError, setSpotlightError] = useState(null);
 
   const [selectedFriendId, setSelectedFriendId] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -98,9 +104,27 @@ const ComunidadView = () => {
     }
   }, [getFriends, t]);
 
+  const loadSpotlight = useCallback(async () => {
+    setSpotlightLoading(true);
+    setSpotlightError(null);
+    try {
+      const data = await getCommunitySpotlight();
+      setSpotlight(data);
+    } catch (err) {
+      setSpotlight(null);
+      setSpotlightError(t('communitySpotlightError'));
+    } finally {
+      setSpotlightLoading(false);
+    }
+  }, [getCommunitySpotlight, t]);
+
   useEffect(() => {
     loadFriends();
   }, [loadFriends]);
+
+  useEffect(() => {
+    loadSpotlight();
+  }, [loadSpotlight]);
 
   const loadProfile = useCallback(
     async (friendId) => {
@@ -185,6 +209,7 @@ const ComunidadView = () => {
         prev.map((item) => (item.id === friendId ? { ...item, es_amigo: true } : item))
       );
       await loadFriends();
+      await loadSpotlight();
       if (friend?.id) {
         handleSelectFriend(friend.id);
       }
@@ -194,6 +219,14 @@ const ComunidadView = () => {
       setAddingFriendId(null);
     }
   };
+
+  const handleOpenHighlightFriend = useCallback(
+    (friendId) => {
+      if (!friendId) return;
+      handleSelectFriend(friendId);
+    },
+    [handleSelectFriend]
+  );
 
   const handleToggleEventLike = async (plantId) => {
     setEventLikeLoadingId(plantId);
@@ -223,6 +256,7 @@ const ComunidadView = () => {
           };
         });
       }
+      await loadSpotlight();
     } catch (err) {
       setInteractionError(err.response?.data?.error || t('communityActionError'));
     } finally {
@@ -258,6 +292,7 @@ const ComunidadView = () => {
         });
         setCommentDrafts((prev) => ({ ...prev, [plantId]: '' }));
       }
+      await loadSpotlight();
     } catch (err) {
       setCommentErrors((prev) => ({
         ...prev,
@@ -296,6 +331,7 @@ const ComunidadView = () => {
           return { ...prev, jardin: { ...prev.jardin, plantas: updatedPlants } };
         });
       }
+      await loadSpotlight();
     } catch (err) {
       setInteractionError(err.response?.data?.error || t('communityActionError'));
     } finally {
@@ -340,9 +376,189 @@ const ComunidadView = () => {
     ? t('communityLikesCount', { count: previewLikes.total })
     : '';
 
+  const spotlightHighlights = Array.isArray(spotlight?.highlights) ? spotlight.highlights : [];
+  const spotlightStats = spotlight?.stats || {
+    totalAmigos: 0,
+    totalMomentos: 0,
+    categoriasDestacadas: [],
+  };
+  const spotlightWindowDays = spotlight?.criteria?.windowDays || 45;
+  const spotlightUpdatedLabel = useMemo(() => {
+    if (!spotlight?.generatedAt) {
+      return null;
+    }
+    try {
+      return new Date(spotlight.generatedAt).toLocaleString(locale, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch (err) {
+      return null;
+    }
+  }, [spotlight?.generatedAt, locale]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
       <div className="space-y-6">
+        <section className="rounded-3xl bg-white p-6 shadow">
+          <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gardenGreen">{t('communitySpotlightTitle')}</h2>
+              <p className="text-sm text-slate-600">
+                {t('communitySpotlightSubtitle', { days: spotlightWindowDays })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadSpotlight}
+              className="self-start rounded-full border border-gardenGreen px-4 py-1 text-sm font-semibold text-gardenGreen hover:bg-emerald-50"
+              disabled={spotlightLoading}
+            >
+              {spotlightLoading ? t('communityWorking') : t('communitySpotlightRefresh')}
+            </button>
+          </header>
+          {spotlightLoading && (
+            <p className="text-sm text-slate-500">{t('communitySpotlightLoading')}</p>
+          )}
+          {spotlightError && <p className="text-sm text-rose-600">{spotlightError}</p>}
+          {!spotlightLoading && !spotlightError && (
+            <div className="space-y-5">
+              {spotlightHighlights.length > 0 ? (
+                <ul className="space-y-4">
+                  {spotlightHighlights.map((item) => {
+                    const categoryLabel = item.categoria
+                      ? getLabelForCategory(item.categoria) || item.categoria
+                      : t('gardenNoCategory');
+                    const eventDate = item.fecha_plantado
+                      ? new Date(item.fecha_plantado).toLocaleString(locale, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : null;
+                    const friendSinceLabel = item.amistad?.fecha_union
+                      ? new Date(item.amistad.fecha_union).toLocaleDateString(locale, { dateStyle: 'medium' })
+                      : null;
+                    const isOwnMoment = Boolean(user?.id && item.autor?.id === user.id);
+                    const commentHighlight = item.comentario_destacado?.contenido?.trim() || '';
+                    const commentAuthorName = item.comentario_destacado?.autor?.nombre_usuario;
+
+                    return (
+                      <li
+                        key={item.id}
+                        className="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm transition hover:border-gardenGreen/60 hover:bg-white"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex flex-1 flex-col gap-3">
+                            <div className="flex items-start gap-3">
+                              <Avatar
+                                src={item.autor?.foto_perfil}
+                                name={item.autor?.nombre_usuario}
+                                size="sm"
+                                alt={t('profileAvatarAlt', { name: item.autor?.nombre_usuario || t('communityUnknownUser') })}
+                              />
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="text-base font-semibold text-gardenSoil">{item.nombre}</h3>
+                                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                    {categoryLabel}
+                                  </span>
+                                </div>
+                                {item.descripcion && (
+                                  <p className="text-sm text-slate-600 line-clamp-3">{item.descripcion}</p>
+                                )}
+                                {eventDate && (
+                                  <time className="block text-xs text-slate-500">{eventDate}</time>
+                                )}
+                                <p className="text-sm font-semibold text-gardenGreen">
+                                  {t('communitySpotlightEnergyLabel', { score: item.energia })}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {t('communitySpotlightSupportLabel', {
+                                    likes: item.likes?.total ?? 0,
+                                    comments: item.comentarios_total ?? 0,
+                                  })}
+                                </p>
+                                {commentHighlight && (
+                                  <p className="text-xs italic text-slate-500">
+                                    {t('communitySpotlightCommentHighlight', {
+                                      author: commentAuthorName || t('communityUnknownUser'),
+                                      comment: commentHighlight,
+                                    })}
+                                  </p>
+                                )}
+                                {isOwnMoment ? (
+                                  <p className="text-xs font-semibold text-emerald-600">
+                                    {t('communitySpotlightOwnMomentLabel')}
+                                  </p>
+                                ) : friendSinceLabel ? (
+                                  <p className="text-xs text-slate-500">
+                                    {t('communitySpotlightFriendSince', { date: friendSinceLabel })}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenHighlightFriend(item.autor?.id)}
+                              className="inline-flex items-center justify-center rounded-full bg-gardenGreen px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+                            >
+                              {t('communitySpotlightOpen')}
+                            </button>
+                            <span className="inline-flex min-w-[3.5rem] items-center justify-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                              {t('communitySpotlightBadge', { score: item.energia })}
+                            </span>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-600">{t('communitySpotlightEmpty')}</p>
+              )}
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gardenGreen">{t('communitySpotlightCategoriesTitle')}</h3>
+                {spotlightStats.categoriasDestacadas?.length ? (
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {spotlightStats.categoriasDestacadas.map((category) => (
+                      <li
+                        key={category.categoria || 'unknown'}
+                        className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
+                      >
+                        <span className="text-xs font-semibold text-gardenSoil">
+                          {category.categoria
+                            ? getLabelForCategory(category.categoria) || category.categoria
+                            : t('gardenNoCategory')}
+                        </span>
+                        <span className="text-[0.7rem] text-slate-500">
+                          {t('communitySpotlightCategoryCount', { count: category.count })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">{t('communitySpotlightCategoriesEmpty')}</p>
+                )}
+              </div>
+
+              <div className="text-xs text-slate-500">
+                <p>{t('communitySpotlightMomentsSummary', {
+                  count: spotlightStats.totalMomentos || 0,
+                  friends: spotlightStats.totalAmigos || 0,
+                })}</p>
+                {spotlightUpdatedLabel && (
+                  <p className="mt-1 text-slate-400">
+                    {t('communitySpotlightUpdated', { date: spotlightUpdatedLabel })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="rounded-3xl bg-white p-6 shadow">
           <header className="mb-4">
             <h2 className="text-xl font-semibold text-gardenGreen">{t('communitySearchTitle')}</h2>

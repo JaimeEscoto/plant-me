@@ -6,6 +6,84 @@ const {
   createCommentSchema,
 } = require('../validations/communityValidation');
 
+const buildFriendNetwork = async (currentUserId) => {
+  const { data, error } = await supabase
+    .from('amistades')
+    .select('usuario_a, usuario_b, fecha_creacion')
+    .or(`usuario_a.eq.${currentUserId},usuario_b.eq.${currentUserId}`);
+
+  if (error) {
+    throw toHttpError(error, 'No se pudieron obtener las amistades para el mural comunitario.');
+  }
+
+  const friendsMap = new Map();
+
+  (data || []).forEach((friendship) => {
+    if (!friendship) return;
+
+    const { usuario_a: userA, usuario_b: userB, fecha_creacion: joinedAt } = friendship;
+
+    if (userA === currentUserId && userB) {
+      friendsMap.set(userB, joinedAt || null);
+    } else if (userB === currentUserId && userA) {
+      friendsMap.set(userA, joinedAt || null);
+    }
+  });
+
+  const friendIds = Array.from(friendsMap.keys());
+  return { friendIds, friendsMap };
+};
+
+const fetchPositiveEventTypes = async () => {
+  const { data, error } = await supabase.from('event_types').select('code, plant_delta');
+
+  if (error) {
+    throw toHttpError(error, 'No se pudieron obtener los tipos de evento para el mural comunitario.');
+  }
+
+  const positiveCodes = (data || [])
+    .filter((type) => typeof type?.plant_delta === 'number' && type.plant_delta > 0 && type?.code)
+    .map((type) => type.code);
+
+  return positiveCodes;
+};
+
+const fetchNetworkUsers = async (userIds) => {
+  if (!userIds.length) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('id, nombre_usuario, foto_perfil, fecha_creacion')
+    .in('id', userIds);
+
+  if (error) {
+    throw toHttpError(error, 'No se pudo obtener la información de la comunidad.');
+  }
+
+  return new Map((data || []).map((user) => [user.id, user]));
+};
+
+const RECENCY_WINDOW_DAYS = 45;
+
+const filterByRecency = (items, property) => {
+  if (!Array.isArray(items) || !property) {
+    return [];
+  }
+
+  const now = Date.now();
+  const windowMs = RECENCY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+  return items.filter((item) => {
+    const value = item?.[property];
+    if (!value) return false;
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) return false;
+    return now - timestamp <= windowMs;
+  });
+};
+
 const ensureFriendship = async (currentUserId, targetUserId) => {
   if (!targetUserId) {
     const error = new Error('El evento solicitado no tiene un propietario asociado.');
@@ -248,6 +326,247 @@ exports.toggleCommentLike = async (req, res, next) => {
     }
 
     return res.json({ liked: !existingLike, total: count || 0, comentarioId: commentId, plantaId: comment.planta_id });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getCommunityHighlights = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.id;
+
+    const [{ friendIds, friendsMap }, positiveEventTypes] = await Promise.all([
+      buildFriendNetwork(currentUserId),
+      fetchPositiveEventTypes(),
+    ]);
+
+    const networkIds = Array.from(new Set([currentUserId, ...friendIds]));
+
+    if (!positiveEventTypes.length || !networkIds.length) {
+      return res.json({
+        highlights: [],
+        stats: {
+          totalAmigos: friendIds.length,
+          totalMomentos: 0,
+          categoriasDestacadas: [],
+        },
+        generatedAt: new Date().toISOString(),
+        criteria: {
+          positiveEventTypes,
+          windowDays: RECENCY_WINDOW_DAYS,
+        },
+      });
+    }
+
+    const [usersMap, gardensResult] = await Promise.all([
+      fetchNetworkUsers(networkIds),
+      supabase
+        .from('jardines')
+        .select('id, usuario_id, estado_salud, ultima_modificacion')
+        .in('usuario_id', networkIds),
+    ]);
+
+    if (gardensResult.error) {
+      throw toHttpError(gardensResult.error, 'No se pudieron obtener los jardines para el mural comunitario.');
+    }
+
+    const gardens = gardensResult.data || [];
+    const gardenMap = new Map();
+    const gardenIds = [];
+
+    gardens.forEach((garden) => {
+      if (!garden?.id) return;
+      gardenMap.set(garden.id, garden);
+      gardenIds.push(garden.id);
+    });
+
+    if (!gardenIds.length) {
+      return res.json({
+        highlights: [],
+        stats: {
+          totalAmigos: friendIds.length,
+          totalMomentos: 0,
+          categoriasDestacadas: [],
+        },
+        generatedAt: new Date().toISOString(),
+        criteria: {
+          positiveEventTypes,
+          windowDays: RECENCY_WINDOW_DAYS,
+        },
+      });
+    }
+
+    const plantsResult = await supabase
+      .from('plantas')
+      .select('id, jardin_id, nombre, categoria, tipo, fecha_plantado, descripcion, foto')
+      .in('jardin_id', gardenIds)
+      .in('tipo', positiveEventTypes)
+      .order('fecha_plantado', { ascending: false })
+      .limit(60);
+
+    if (plantsResult.error) {
+      throw toHttpError(plantsResult.error, 'No se pudieron obtener los eventos positivos para el mural comunitario.');
+    }
+
+    const recentPositivePlants = filterByRecency(plantsResult.data || [], 'fecha_plantado');
+
+    if (!recentPositivePlants.length) {
+      return res.json({
+        highlights: [],
+        stats: {
+          totalAmigos: friendIds.length,
+          totalMomentos: 0,
+          categoriasDestacadas: [],
+        },
+        generatedAt: new Date().toISOString(),
+        criteria: {
+          positiveEventTypes,
+          windowDays: RECENCY_WINDOW_DAYS,
+        },
+      });
+    }
+
+    const plantIds = recentPositivePlants.map((plant) => plant.id);
+
+    const [likesResult, commentsResult] = await Promise.all([
+      supabase.from('plantas_likes').select('planta_id, usuario_id').in('planta_id', plantIds),
+      supabase
+        .from('plantas_comentarios')
+        .select('id, planta_id, usuario_id, contenido, fecha_creacion, usuarios ( nombre_usuario, foto_perfil )')
+        .in('planta_id', plantIds)
+        .order('fecha_creacion', { ascending: false }),
+    ]);
+
+    if (likesResult.error) {
+      throw toHttpError(likesResult.error, 'No se pudieron obtener los aplausos para el mural comunitario.');
+    }
+
+    if (commentsResult.error) {
+      throw toHttpError(commentsResult.error, 'No se pudieron obtener los comentarios para el mural comunitario.');
+    }
+
+    const likesByPlant = new Map();
+    (likesResult.data || []).forEach((like) => {
+      if (!like?.planta_id) return;
+      const entry = likesByPlant.get(like.planta_id) || { total: 0, likedByMe: false };
+      entry.total += 1;
+      if (like.usuario_id === currentUserId) {
+        entry.likedByMe = true;
+      }
+      likesByPlant.set(like.planta_id, entry);
+    });
+
+    const commentsByPlant = new Map();
+    const latestCommentByPlant = new Map();
+
+    (commentsResult.data || []).forEach((comment) => {
+      if (!comment?.planta_id) return;
+      const count = commentsByPlant.get(comment.planta_id) || 0;
+      commentsByPlant.set(comment.planta_id, count + 1);
+      if (!latestCommentByPlant.has(comment.planta_id)) {
+        const author = comment.usuarios || null;
+        latestCommentByPlant.set(comment.planta_id, {
+          id: comment.id,
+          contenido: comment.contenido,
+          fecha_creacion: comment.fecha_creacion,
+          autor: author
+            ? {
+                id: comment.usuario_id,
+                nombre_usuario: author.nombre_usuario || null,
+                foto_perfil: author.foto_perfil || null,
+              }
+            : {
+                id: comment.usuario_id,
+                nombre_usuario: null,
+                foto_perfil: null,
+              },
+        });
+      }
+    });
+
+    const categoriesCount = new Map();
+
+    const highlights = recentPositivePlants
+      .map((plant) => {
+        if (!plant?.id) return null;
+
+        const garden = gardenMap.get(plant.jardin_id) || null;
+        if (!garden?.usuario_id) return null;
+
+        const author = usersMap.get(garden.usuario_id) || null;
+        if (!author) return null;
+
+        const likesInfo = likesByPlant.get(plant.id) || { total: 0, likedByMe: false };
+        const commentCount = commentsByPlant.get(plant.id) || 0;
+        const featuredComment = latestCommentByPlant.get(plant.id) || null;
+
+        const healthScore = typeof garden.estado_salud === 'number' ? garden.estado_salud : 0;
+        const photoBonus = plant.foto ? 2 : 0;
+        const energyScore = likesInfo.total * 2 + commentCount + Math.round(healthScore / 20) + photoBonus;
+
+        const friendshipSince = friendsMap.get(author.id) || null;
+
+        if (plant.categoria) {
+          const current = categoriesCount.get(plant.categoria) || 0;
+          categoriesCount.set(plant.categoria, current + 1);
+        }
+
+        return {
+          id: plant.id,
+          nombre: plant.nombre,
+          descripcion: plant.descripcion,
+          categoria: plant.categoria,
+          tipo: plant.tipo,
+          fecha_plantado: plant.fecha_plantado,
+          foto: plant.foto,
+          likes: likesInfo,
+          comentarios_total: commentCount,
+          comentario_destacado: featuredComment,
+          energia: energyScore,
+          autor: {
+            id: author.id,
+            nombre_usuario: author.nombre_usuario,
+            foto_perfil: author.foto_perfil || null,
+          },
+          amistad: friendshipSince
+            ? {
+                fecha_union: friendshipSince,
+              }
+            : null,
+          jardin: {
+            id: garden.id,
+            estado_salud: garden.estado_salud,
+            ultima_modificacion: garden.ultima_modificacion,
+          },
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (b.energia !== a.energia) {
+          return b.energia - a.energia;
+        }
+        return new Date(b.fecha_plantado).getTime() - new Date(a.fecha_plantado).getTime();
+      })
+      .slice(0, 6);
+
+    const categoriasDestacadas = Array.from(categoriesCount.entries())
+      .map(([categoria, count]) => ({ categoria, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return res.json({
+      highlights,
+      stats: {
+        totalAmigos: friendIds.length,
+        totalMomentos: recentPositivePlants.length,
+        categoriasDestacadas,
+      },
+      generatedAt: new Date().toISOString(),
+      criteria: {
+        positiveEventTypes,
+        windowDays: RECENCY_WINDOW_DAYS,
+      },
+    });
   } catch (err) {
     return next(err);
   }

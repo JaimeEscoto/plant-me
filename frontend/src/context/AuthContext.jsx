@@ -171,6 +171,15 @@ export const AuthProvider = ({ children }) => {
     [authHeaders, token]
   );
 
+  const getCommunitySpotlight = useCallback(
+    async () => {
+      if (!token) return { highlights: [], stats: { totalAmigos: 0, totalMomentos: 0, categoriasDestacadas: [] } };
+      const { data } = await api.get('/usuarios/comunidad/mural', { headers: authHeaders });
+      return data;
+    },
+    [authHeaders, token]
+  );
+
   const getUserProfile = useCallback(
     async (userId) => {
       if (!token) return null;
@@ -450,8 +459,9 @@ export const AuthProvider = ({ children }) => {
     api,
     searchUsers,
     addFriend,
-    getFriends,
-    getUserProfile,
+      getFriends,
+      getCommunitySpotlight,
+      getUserProfile,
     togglePlantLike,
     createPlantComment,
     toggleCommentLike,
