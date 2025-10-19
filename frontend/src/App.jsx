@@ -237,46 +237,6 @@ const Dashboard = () => {
                 <ProfilePhotoManager />
               </div>
             </div>
-            <div className="px-6 pb-6">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <button
-                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
-                    activeTab === 'jardin'
-                      ? 'border-gardenGreen bg-white text-gardenGreen'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
-                  }`}
-                  onClick={() => setActiveTab('jardin')}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Planificación</p>
-                  <p className="mt-1 text-base font-semibold">Panel del jardín</p>
-                  <p className="text-xs text-slate-500">Cuida y organiza tus cultivos</p>
-                </button>
-                <button
-                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
-                    activeTab === 'seed-history'
-                      ? 'border-gardenGreen bg-white text-gardenGreen'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
-                  }`}
-                  onClick={() => setActiveTab('seed-history')}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Seguimiento</p>
-                  <p className="mt-1 text-base font-semibold">Registro de semillas</p>
-                  <p className="text-xs text-slate-500">Consulta siembras y germinaciones</p>
-                </button>
-                <button
-                  className={`rounded-xl border px-4 py-3 text-left transition shadow-sm ${
-                    activeTab === 'comunidad'
-                      ? 'border-gardenGreen bg-white text-gardenGreen'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-gardenGreen/40'
-                  }`}
-                  onClick={() => setActiveTab('comunidad')}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Inspiración</p>
-                  <p className="mt-1 text-base font-semibold">Comunidad</p>
-                  <p className="text-xs text-slate-500">Comparte y aprende con otros horticultores</p>
-                </button>
-              </div>
-            </div>
           </div>
           <div className="flex-1 px-6 pb-10 overflow-y-auto">
             <div className="max-w-6xl mx-auto space-y-6">
