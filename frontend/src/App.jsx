@@ -238,7 +238,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          <div className="flex-1 px-6 pb-10 overflow-y-auto">
+          <div className="flex-1 px-6 pb-10 pt-6 lg:pt-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto space-y-6">
               {renderContent()}
             </div>
